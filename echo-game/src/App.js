@@ -12,7 +12,7 @@ export default function App() {
   const [lastRunResult, setLastRunResult] = useState(null);
   const [highScore, setHighScore] = useState(0);
 
-  const onCombatEnd = [result] => {
+  const onCombatEnd = (result) => {
     const earned = result.fragmentsEarned || 0;
     setFragments(f => f + earned);
     setLastRunResult(result);
@@ -20,23 +20,23 @@ export default function App() {
     if (earned > highScore) {
       setHighScore(earned);
     }
-
     setScreen("base");
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
         <div className="bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border border-purple-500/30">
         
-          <div className="flex flex-col sm:flex-row items-start smitems-center justify-between mb-6 gap-4">
+          <div className="flex flex-col sm:flex-row items-start items-center justify-between mb-6 gap-4">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-purple bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-purple-300 bg-clip-text text-transparent">
                 Echo
               </h1>
             </div>
-            <div class="flex gap-4">
-              <StatBagde label="Best Score" value={highScore} color="purple"/>
-              <StatBagde label="Total Collected" value={fragments} color="pink"/>
+            <div className="flex gap-4">
+              <StatBadge label="Best Score" value={highScore} color="purple"/>
+              <StatBadge label="Total Collected" value={fragments} color="pink"/>
             </div>
           </div>
 
@@ -67,7 +67,7 @@ export default function App() {
   );
 }
 
-function StatBage({ label, value, color}) {
+function StatBadge({ label, value, color}) {
   const colors = {
     purple: 'bg-purple-500/20 border-purple-500/30 text-purple-300',
     pink: 'bg-pink-500/20 border-pink-500/30 text-pink-300'
@@ -85,13 +85,13 @@ function Story({ index, line, onAdvance }) {
   return (
     <div className="py-16 sm:py-24 text-center">
       <div className="mx-auto max-w-3xl">
-        <div className="bg-gradient-to-br from-clate-900/80 to-purple-900/40 border border-purple-500/40 p-8 sm:p-12 rounded-xl shadow-2xl">
+        <div className="bg-gradient-to-br from-slate-900/80 to-purple-900/40 border border-purple-500/40 p-8 sm:p-12 rounded-xl shadow-2xl">
         <p className="text-xl leading-relaxed text-slate-100 mb-8">
           {line}
         </p>
         <button
           onClick={onAdvance}
-          className="px-8 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-seminold shadow-lg shadow-purple-500/50 transition-all transform hover:scale-105"
+          className="px-8 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold shadow-lg shadow-purple-500/50 transition-all transform hover:scale-105"
         >
           {index < STORY_LINES.length - 1 ? 'Continue' : 'Start Game'}
         </button>
@@ -104,24 +104,24 @@ function Story({ index, line, onAdvance }) {
 function BaseScreen({ onBegin, lastRunResult }) {
   return (
     <div className="max-w-2xl mx-auto text-center space-y-6">
-      <div className="bg-gradient-to-br from-slate-900/60 to-purple-900/30 p-8 rounded-xl border-purple-500/30">
+      <div className="bg-gradient-to-br from-slate-900/60 to-purple-900/30 p-8 rounded-xl border border-purple-500/30">
         <h2 className="text-3xl font-bold mb-4 text-purple-300">Ready to Deploy?</h2>
 
         {lastRunResult && (
           <div className="mb-6 p-4 rounded-lg border border-slate-700 bg-slate-900/50">
             <div className="text-lg font-semibold text-slate-200 mb-2">
-              Last Run: {lastRunResult ? 'Survived' : 'Overwhelmed'}
+              Last Run: {lastRunResult.survived ? 'Survived' : 'Overwhelmed'}
             </div>
             <div className="text-3xl font-bold text-purple-300 mb-1">
               {lastRunResult.fragmentsEarned} Fragments
             </div>
-            <div className="text-sml text-slate-400">
+            <div className="text-sm text-slate-400">
               Time survived: {lastRunResult.timeSurvived}s
             </div>
           </div>
         )}
         <div className="bg-slate-900/50 border border-purple-500/30 rounded-lg p-6 mb-6">
-          <h3 className="text-xl font-bold text-purple-300 mb-3"></h3>
+          <h3 className="text-xl font-bold text-purple-300 mb-3">How to Play:</h3>
           <div className="flex items-start gap-3">
             <div className="text-2xl">target art</div>
             <div>
@@ -130,7 +130,7 @@ function BaseScreen({ onBegin, lastRunResult }) {
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="text-2l">dash art</div>
+            <div className="text-2xl">dash art</div>
             <div>
               <div className="font-semibold">Right Click or Shift</div>
               <div className="text-sm text-slate-400">Dash to dodge enemies and move quickly</div>
@@ -166,7 +166,7 @@ function CombatScene({ onExit }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvasRef.getContext('2d');
+    const ctx = canvas.getContext('2d');
 
     const state = {
       player: {
@@ -232,18 +232,18 @@ function CombatScene({ onExit }) {
           state.player.vy = (dy/dist) * dashSpeed;
           state.player.dashCooldown = 1.5;
           state.player.invulnerable = 0.2;
-          createParticle(state.player.x, state.player.y, 15, '#a855f7', 4);
+          createParticles(state.player.x, state.player.y, 15, '#a855f7', 4);
         }
       }
     }
 
-    canvas.addEventListener('mouseMove', onMouseMove);
-    canvas.addEventListener('mouseDown', onMouseDown);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('mouseup', onMouseUp);
     canvas.addEventListener('contextmenu', onContextMenu);
     window.addEventListener('keydown', onKeyDown);
 
-    function createParticle(x, y, count, color, speed = 2) {
+    function createParticles(x, y, count, color, speed = 2) {
       for (let i=0; i < count; i++) {
         const angle = (Math.PI*2*i)/count;
         state.particles.push({
@@ -369,6 +369,7 @@ function CombatScene({ onExit }) {
         enemy.x += enemy.vx * dt;
         enemy.y += enemy.vy * dt;
 
+        //hit player
         if (state.player.invulnerable <= 0) {
           const playerDist = Math.hypot(enemy.x - state.player.x, enemy.y - state.player.y);
           if (playerDist < state.player.radius + enemy.radius) {
@@ -406,7 +407,7 @@ function CombatScene({ onExit }) {
       const enemySpawnRate = Math.max(2, 5 - state.time * 0.05);
       if (state.enemySpawnTimer > enemySpawnRate) {
         state.enemySpawnTimer = 0;
-        iff (state.enemies.length < 8) {
+        if (state.enemies.length < 8) {
           spawnEnemy();
         }
       }
@@ -445,11 +446,11 @@ function CombatScene({ onExit }) {
   }, [onExit]);
 
   return (
-    <div classname="space-y-4">
+    <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <UICard label="Score" value={uiState.fragments} color="purple" />
         <UICard label="Health" value={`${uiState.health}%`} color={uiState.health > 50 ? 'green' : 'red'} />
-        <UICard label="Time" valye={`${uiState.time}s`} color="blue" />
+        <UICard label="Time" value={`${uiState.time}s`} color="blue" />
       </div>
 
       <div className="relative rounded-xl overflow-hidden border border-purple-500/30 shadow-2xl">
@@ -461,7 +462,7 @@ function CombatScene({ onExit }) {
         />
 
         {/*Dash indicator overlay*/}
-        <div className={`absolute buttom-4 right-4 px-4 py-2 rounded-lg border ${
+        <div className={`absolute bottom-4 right-4 px-4 py-2 rounded-lg border ${
           uiState.dashReady
             ? 'bg-purple-500/30 border-purple-400 text-purple-200'
             : 'bg-slate-800/50 border-slate-600 text-slate-400'
@@ -478,15 +479,15 @@ function CombatScene({ onExit }) {
           <div>
             <div className="font-bold text-purple-300 mb-2">Controls:</div>
             <div className="text-slate-300 space-y-1 text-xs">
-              <div>•<span className="text-pink-300">Hold Left Click</span> -Pull fragments</div>
-              <div>•<span className="text-purple-300">Right Click / Shift</span> -Dash</div>
-              <div>•<span className="text-blue-300">Touch fragments</span> -Collect them</div>
+              <div>• <span className="text-pink-300">Hold Left Click</span> -Pull fragments</div>
+              <div>• <span className="text-purple-300">Right Click / Shift</span> -Dash</div>
+              <div>• <span className="text-blue-300">Touch fragments</span> -Collect them</div>
             </div>
           </div>
           <div>
             <div className="font-bold text-pink-300 mb-2">Tips:</div>
             <div className="text-slate-300 space-y-1 text-xs">
-              <div>Full fragments from far away</div>
+              <div>Pull fragments from far away</div>
               <div>Dash through enemies to dodge</div>
               <div>Game gets harder over time</div>
             </div>
@@ -529,13 +530,14 @@ function drawScene(ctx, state) {
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, 800, 360);
 
-  ctx.strokeStyle = 'rgba(139, 92, 246, 0.1';
+  //grid
+  ctx.strokeStyle = 'rgba(139, 92, 246, 0.1)';
   ctx.lineWidth = 1;
   for (let x = 0; x < 800; x += 40) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, 360);
-    ctz.stroke();
+    ctx.stroke();
   }
   for (let y = 0; y < 360; y += 40) {
     ctx.beginPath();
@@ -544,20 +546,141 @@ function drawScene(ctx, state) {
     ctx.stroke();
   }
 
-  state.particles.forEach(p=> {
-    const alpha = Math.floor(p.lift*255).toString(16).padStart(2, '0');
+  state.particles.forEach(p => {
+    const alpha = Math.floor(p.life*255).toString(16).padStart(2, '0');
     ctx.fillStyle = p.color + alpha;
     ctx.beginPath();
     ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
     ctx.fill();
   });
 
+  //pull beam
   if (state.pulling) {
     state.fragments.forEach(frag => {
       const dist = Math.hypot(state.mouse.x - frag.x, state.mouse.y - frag.y);
       if (dist < 150) {
-        const alpha = Math
+        const alpha = Math.floor((1 - dist/150) * 100);
+        ctx.strokeStyle = `rgba(168, 85, 247, 0.${alpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(state.mouse.x, state.mouse.y);
+        ctx.lineTo(frag.x, frag.y);
+        ctx.lineTo(frag.x, frag.y);
+        ctx.stroke();
       }
-    })
+    });
+
+    //cursor effect!!!
+    ctx.strokeStyle = `rgba(168, 85, 247, 0.6)`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(state.mouse.x, state.mouse.y, 150, 0, Math.PI*2);
+    ctx.stroke();
   }
+
+  //fragments
+  state.fragments.forEach(frag => {
+    const pulse = Math.sin(frag.pulse) * 0.3 + 1;
+    //glow
+    const glowGrad = ctx.createRadialGradient(frag.x, frag.y, 0, frag.x, frag.y, frag.radius * 3);
+    glowGrad.addColorStop(0, frag.color + '80');
+    glowGrad.addColorStop(1, frag.color + '00');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(frag.x, frag.y, frag.radius * 3, 0, Math.PI*2);
+    ctx.fill();
+    //core
+    ctx.fillStyle = frag.color;
+    ctx.beginPath();
+    ctx.arc(frag.x, frag.y, frag.radius*pulse, 0, Math.PI*2);
+    ctx.fill();
+
+    //highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.arc(frag.x - frag.radius * 0.3, frag.y - frag.radius * 0.3, frag.radius*0.4, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  //enemies
+  state.enemies.forEach(enemy => {
+    const pulse = Math.sin(enemy.pulse)*0.2 + 1;
+
+    //glow
+    const glowGrad = ctx.createRadialGradient(enemy.x, enemy.y, 0, enemy.x, enemy.y, enemy.radius * 3);
+    glowGrad.addColorStop(0, 'rgba(220, 38, 38, 0.6)');
+    glowGrad.addColorStop(1, 'rgba(220, 38, 38, 0)');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, enemy.radius * 3, 0, Math.PI*2);
+    ctx.fill();
+    //core
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, enemy.radius*pulse, 0, Math.PI*2);
+    ctx.fill();
+    //spikes
+    ctx.strokeStyle = '#991b1b';
+    ctx.lineWidth = 2;
+    for (let i = 0; i< 8; i++) {
+      const angle = (Math.PI * 2*i)/ 8+enemy.pulse;
+      ctx.beginPath();
+      ctx.moveTo(enemy.x, enemy.y);
+      ctx.lineTo(
+        enemy.x + Math.cos(angle) * enemy.radius*1.5,
+        enemy.y + Math.sin(angle) * enemy.radius * 1.5
+      );
+      ctx.stroke();
+    }
+  });
+
+  const p = state.player;
+  //shield
+  if (p.invulnerable > 0) {
+    const flashAlpha = Math.sin(state.time * 20) * 0.5 + 0.5;
+    ctx.strokeStyle = `rgba(168, 85, 247, ${flashAlpha})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius + 5, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  const playerGlow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius*2);
+  playerGlow.addColorStop(0, 'rgba(168, 85, 247, 0.6)');
+  playerGlow.addColorStop(1, 'rgba(168, 85, 247, 0)');
+  ctx.fillStyle = playerGlow;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.radius*2, 0, Math.PI*2);
+  ctx.fill();
+
+  //player body
+  ctx.fillStyle = '#e9d5ff';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = '#a855f7';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.radius*0.6, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.beginPath();
+  ctx.arc(p.x - p.radius*0.3, p.y - p.radius*0.3, p.radius*0.4, 0, Math.PI*2);
+  ctx.fill();
+
+  //direction to mouse
+  const dx = state.mouse.x - p.x;
+  const dy = state.mouse.y - p.y;
+  const angle = Math.atan2(dy, dx);
+  ctx.strokeStyle = '#a855f7';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  ctx.lineTo(p.x + Math.cos(angle) * (p.radius + 8), p.y + Math.sin(angle)*(p.radius + 8));
+  ctx.stroke();
+
+  ctx.restore();
 }
+
+
