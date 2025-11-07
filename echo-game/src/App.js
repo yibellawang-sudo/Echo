@@ -1,65 +1,116 @@
 import React, { useState, useEffect, useRef } from 'react';
-const STORY_LINES = [
-  "You awaken to static.",
-  "Corrupted data fragments drift through the Grid",
-  "Blah blah blah more story that ill come up with later"
+
+//make this chapters instread. system failure (initial panic) to detecting corruption to beginning recovery
+const STORY_CHAPTERS = [
+  {
+    title:"System Failure",
+    text:"The Grid has collapsed. You are a Recovery AI, designed to rebuild the Core Node by collecting scattered data fragments.",
+    instruction:"Your mission: Restore 100 fragments to stabilize the system.",
+  },
+  {
+    title:"Corruption Detected",
+    text:"Warning: Hostile entities detected. These are corrupted processes trying to prevent recovery.",
+    instruction:"Avoid corruption at all costs. Three hits and you'll need to restart.",
+  },
+  {
+    title:"Begin Recovery",
+    text:"The Grid is counting on you. Every fragment brings us closer to restoration.",
+    instruction:"Move with WASD/arrows. Collect fragments. Survive.",
+  }
 ]
+
+//missions
+const MISSIONS = [
+  { id: 1, name: "FirstRecovery", goal: 50, unlocked: true, completed: false, reward: "Mission Complete!" },
+  { id: 2, name: "Deep Scan", goal: 100, unlocked: false, completed: false, reward: "System Stabilized!" },
+  { id: 3, name: "FirstRecovery", goal: 200, unlocked: false, completed: false, reward: "Core Online!" },
+  { id: 4, name: "FirstRecovery", goal: 300, unlocked: false, completed: false, reward: "Grid Restored!" }
+];
 
 export default function App() {
   const [screen, setScreen] = useState('story');
   const [storyIndex, setStoryIndex] = useState(0);
   const [fragments, setFragments] = useState(0);
   const [lastRunResult, setLastRunResult] = useState(null);
-  const [highScore, setHighScore] = useState(0);
+  //const [highScore, setHighScore] = useState(0);
+  const [missions, setMissions] = useState(MISSIONS);
+  const [currentMission, setCurrentMission] = useState(null);
+  const [totalFragments, setTotalFragments] = useState(0);
 
   const onCombatEnd = (result) => {
-    const earned = result.fragmentsEarned || 0;
-    setFragments(f => f + earned);
+    //const earned = result.fragmentsEarned || 0;
+    setTotalFragments(prev => prev + result.fragmentsEarned);
     setLastRunResult(result);
 
-    if (earned > highScore) {
-      setHighScore(earned);
+    //add: check mission completion
+    if (currentMission && result.fragmentsCollected >= currentMission.goal) {
+      setMissions(prev => prev.map(m => {
+        if (m.id === currentMission.id) {
+          return { ...m, completed: true };
+        }
+        if (m.id === currentMission.id + 1) {
+          return { ...m, unlocked: true };
+        }
+        return m;
+      }));
     }
-    setScreen("base");
+
+    setScreen("missionSelect");
   };
 
+  const startMission = (mission) => {
+    setCurrentMission(mission);
+    setScreen('game');
+  };
+//change color scheme to indigo/purple/cyan/blue(obvi)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 sm:p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-slate-800/90 backdrop-blur-sm rounded-2xl p-4 sm:p-8 shadow-2xl border border-purple-500/30">
-        
-          <div className="flex flex-col sm:flex-row items-start items-center justify-between mb-6 gap-4">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-purple-300 bg-clip-text text-transparent">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 p-4 flex items-center justify-center">
+      <div className="max-w-5xl w-full">
+        <div className="bg-black/50 backdrop-blur-lg rounded-3xl p-8 border-2 border-cyan-500/30 shadow-2xl">
+          {/*header */}
+          <div className="text-center mb-8">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent mb-2">
                 Echo
-              </h1>
-            </div>
-            <div className="flex gap-4">
-              <StatBadge label="Best Score" value={highScore} color="purple"/>
-              <StatBadge label="Total Collected" value={fragments} color="pink"/>
+            </h1>
+            <div className="flex gap-6 justify-center mt-4">
+              <div className="bg-cyan-900/30 border border-cyan-500/50 rounded-xl px-6 py-2">
+                <div className="text-cyan-300 text-xs">Total Fragments Recovered</div>
+                <div className="text-3xl font-bold text-white">{totalFragments}</div>
+              </div>
+              <div className="bg-purple-900/30 border border-purple-500/50 rounded-xl px-6 py-2">
+                <div className="text-purple-300 text-xs">Mission Completed</div>
+                <div className="text-3xl font-bold text-white">{missions.filter(m => m.completed).length}/{mission.length}</div>
+              </div>
             </div>
           </div>
-
+          {/*story screen*/}
           {screen === 'story' && (
             <Story
-              index={storyIndex}
-              line={STORY_LINES[storyIndex]}
+              chapter={STORY_CHAPTERS[storyIndex]}
               onAdvance={() => {
-                if (storyIndex < STORY_LINES.length-1) {
-                  setStoryIndex(i => i + 1);
+                if (storyIndex < STORY_CHAPTERS.length-1) {
+                  setStoryIndex(prev => prev + 1);
                 } else {
-                  setScreen('base');
+                  setScreen('missionSelect');
                 }
               }}
             />
           )}
-
-          {screen === 'base' && (
-            <BaseScreen onBegin={() => setScreen('combat')} lastRunResult={lastRunResult} />
+          {/*add: misison select*/}
+          {screen === "missionSelect" && (
+            <MissionSelectScreen
+              missions={missions}
+              onSelectMission={startMission}
+              lastRunResult={lastRunResult}
+            />
           )}
 
-          {screen === 'combat' && (
-            <CombatScene onExit={onCombatEnd} />
+          {/*game*/}
+          {screen === 'game' && currentMission && (
+            <GameScreen
+              mission={currentMission}
+              onGameEnd={onGameEnd}
+            />
           )}
         </div>
       </div>
@@ -81,6 +132,7 @@ function StatBadge({ label, value, color}) {
   );
 }
 
+//update into chapter form
 function Story({ index, line, onAdvance }) {
   return (
     <div className="py-16 sm:py-24 text-center">
@@ -101,6 +153,8 @@ function Story({ index, line, onAdvance }) {
   );
 }
 
+//add function for missionSelectScreen, takes parameters for missions, onSelectMission & lastRunResult
+//add function for mission card
 function BaseScreen({ onBegin, lastRunResult }) {
   return (
     <div className="max-w-2xl mx-auto text-center space-y-6">
@@ -155,6 +209,7 @@ function BaseScreen({ onBegin, lastRunResult }) {
   );
 }
 
+//update for key-based gameplay, no more mouse-based stuff (too hard to operate)
 function CombatScene({ onExit }) {
   const canvasRef = useRef(null);
   const [uiState, setUiState] = useState({
@@ -420,7 +475,7 @@ function CombatScene({ onExit }) {
         });
         return;
       }
-
+      //update ui
       setUiState({
         fragments: state.score,
         health: Math.max(0, Math.round(state.health)),
@@ -445,6 +500,7 @@ function CombatScene({ onExit }) {
     };
   }, [onExit]);
 
+  //add mission header and progress bar
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
