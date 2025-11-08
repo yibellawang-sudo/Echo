@@ -12,6 +12,11 @@ const STORY_CHAPTERS = [
     instruction:"Avoid corruption at all costs. Three hits and you'll need to restart.",
   },
   {
+    title: "Power Ups",
+    text: "Good news! The Grid has defense mechanisms! Collect power ups to gain temporary abilities!",
+    instruction: "Shield / Speed Boost / Clear Zone / Magnet"
+  },
+  {
     title:"Begin Recovery",
     text:"The Grid is counting on you. Every fragment brings us closer to restoration.",
     instruction:"Move with WASD/arrows. Collect fragments. Survive.",
@@ -29,9 +34,7 @@ const MISSIONS = [
 export default function App() {
   const [screen, setScreen] = useState('story');
   const [storyIndex, setStoryIndex] = useState(0);
-  //const [fragments, setFragments] = useState(0);
   const [lastRunResult, setLastRunResult] = useState(null);
-  //const [highScore, setHighScore] = useState(0);
   const [missions, setMissions] = useState(MISSIONS);
   const [currentMission, setCurrentMission] = useState(null);
   const [totalFragments, setTotalFragments] = useState(0);
@@ -40,7 +43,7 @@ export default function App() {
     setTotalFragments(prev => prev + result.fragmentsCollected);
     setLastRunResult(result);
 
-    //add: check mission completion
+    //mission completion checker
     if (currentMission && result.fragmentsCollected >= currentMission.goal) {
       setMissions(prev => prev.map(m => {
         if (m.id === currentMission.id) {
@@ -60,7 +63,6 @@ export default function App() {
     setCurrentMission(mission);
     setScreen('game');
   };
-//change color scheme to indigo/purple/cyan/blue(obvi)
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 p-4 flex items-center justify-center">
       <div className="max-w-5xl w-full">
@@ -116,20 +118,6 @@ export default function App() {
   );
 }
 
-function StatBadge({ label, value, color}) {
-  const colors = {
-    purple: 'bg-purple-500/20 border-purple-500/30 text-purple-300',
-    pink: 'bg-pink-500/20 border-pink-500/30 text-pink-300'
-  };
-
-  return (
-    <div className={`px-4 py-2 rounded-lg border ${colors[color]}`}>
-      <div className="text-xs opacity-70">{label}</div>
-      <div className="text-2xl font-bold">{value}</div>
-    </div>
-  );
-}
-
 //update into chapter form
 function Story({ chapter, onAdvance }) {
   return (
@@ -160,7 +148,6 @@ function Story({ chapter, onAdvance }) {
   );
 }
 
-//add function for missionSelectScreen, takes parameters for missions, onSelectMission & lastRunResult
 function MissionSelectScreen({ missions, onSelectMission, lastRunResult }) {
   return (
     <div className="space-y-8">
@@ -207,37 +194,43 @@ function MissionSelectScreen({ missions, onSelectMission, lastRunResult }) {
       </div>
 
       <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-cyan-300 mb-3">How to Play</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="flex items-start gap-2">
-            <div className="text-2xl">keyboard art</div>
-            <div>
-              <div className="font-semibold text-white">WASD / Arrows</div>
-              <div className="text-slate-400">Move yourself</div> 
-            </div>
+        <h3 className="text-lg font-bold text-cyan-300 mb-3">Power Ups Guide</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded p-3 text-center">
+            <div className="text-3xl mb-1">shield art</div>
+            <div className="font-bold text-blue-300">Shield</div>
+            <div className="text-xs text-slate-400">Counter one hit from enemies</div> 
           </div>
-          <div className="flex items-start gap-2">
-            <div className="text-2xl">frag art</div>
-            <div>
-              <div className="font-semibold text-white">Blue Fragments</div>
-              <div className="text-slate-400">Collect to reach goal</div>
-            </div>
+          <div className="bg-yellow-900/20 border border-yellow-500/30 rounded p-3 text-center">
+            <div className="text-3xl mb-1">speed art</div>
+            <div className="font-bold text-blue-300">Speed</div>
+            <div className="text-xs text-slate-400">Move faster</div> 
           </div>
-          <div className="flex items-start gap-2">
-            <div className="text-2xl">warning art</div>
-            <div>
-              <div className="font-semibold text-white">Red Corruption</div>
-              <div className="text-slate-400">Avoid at all costs (3 hits = fail)</div>
-            </div>
+          <div className="bg-red-900/20 border border-rede-500/30 rounded p-3 text-center">
+            <div className="text-3xl mb-1">clear art</div>
+            <div className="font-bold text-blue-300">Clear</div>
+            <div className="text-xs text-slate-400">Remove enemies</div> 
+          </div>
+          <div className="bg-purple-900/20 border border-purple-500/30 rounded p-3 text-center">
+            <div className="text-3xl mb-1">magnet art</div>
+            <div className="font-bold text-blue-300">Magnet</div>
+            <div className="text-xs text-slate-400">Attact fragments</div> 
           </div>
         </div>
       </div>
     </div>
   );
 }
-//add function for mission card
+
 function MissionCard({ mission, onSelect }) {
   const canPlay = mission.unlocked && !mission.completed;
+
+  const difficultyColors = {
+    Easy: 'text-green-400',
+    Medium: 'text-yellow-400',
+    Hard: 'text-orange-400',
+    Expert: 'text-red-400'
+  }
 
   return (
     <div className={`border-2 rounded-xl p-6 transition-all ${
@@ -280,7 +273,6 @@ function MissionCard({ mission, onSelect }) {
   );
 }
 
-//update for key-based gameplay, no more mouse-based stuff (too hard to operate)
 function GameScreen({ mission, onGameEnd }) {
   const canvasRef = useRef(null);
   const [uiState, setUiState] = useState({
@@ -288,30 +280,50 @@ function GameScreen({ mission, onGameEnd }) {
     goal: mission.goal,
     health: 3,
     time: 0,
-    progress: 0
+    progress: 0,
+    activePowerUp: null,
+    powerUpTimer: 0
   });
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
+    const POWERUP_TYPES = [
+      { type: 'shield', sign: 'art', color: '#3b82f6', duration: 10 },
+      { type: 'speed', sign: 'art', color: '#eab308', duration: 10 },
+      { type: 'clear', sign: 'art', color: '#ef4444', duration: 10 },
+      { type: 'magnet', sign: 'art', color: '#a855f7', duration: 10 }
+    ]
+
     const state = {
       player: {
         x: 400, y:300,
         size: 20,
+        baseSpeed: 5,
         speed: 5,
         health: 3,
-        invulnerable: 0
+        maxHealth: 3,
+        invulnerable: 0,
+        hasShield: false
       },
       fragments: [],
       enemies: [],
       particles: [],
       keys: {},
+      powerUps: [],
+      floatingTexts: [],
       collected: 0,
       goal: mission.goal,
       time: 0,
       spawnTimer: 0,
       enemySpawnTimer: 0,
+      powerUpSpawnTimer: 0,
+      activePowerUp: null,
+      powerUpTimer: 0,
+      powerUpsCollected: 0,
+      combo: 0,
+      comboTimer: 0,
       gameOver: false
     };
 
@@ -334,17 +346,38 @@ function GameScreen({ mission, onGameEnd }) {
           vx: Math.cos(angle)*3,
           vy: Math.sin(angle)*3,
           life: 1,
-          color
+          color,
+          size: 2 + Math.random() * 2
         });
       }
     }
+
+    function addFloatingText(x, y, text, color) {
+      state.floatingTexts.push({
+        x, y,
+        text,
+        color,
+        life: 1,
+        vy: -2
+      });
+    }
+
     function spawnFragment() {
       const x = Math.random() * 760 + 20;
       const y = Math.random() * 560 + 20;
 
+      const types = [
+        { value: 1, size: 10, color:'#60a5fa', },
+        { value: 2, size: 14, color:'#4980ffff', },
+        { value: 3, size: 16, color:'#3140e4ff', }
+      ];
+      const type = types[Math.imul(Math.floor(Math.random() * (1 + mission.id * 0.5)), 2)];
+
       state.fragments.push({
         x, y,
-        size: 12,
+        size: type.size,
+        value: type.value,
+        color: type.color,
         pulse: Math.random() * Math.PI* 2
       });
     }
@@ -358,12 +391,42 @@ function GameScreen({ mission, onGameEnd }) {
         case 2: x = Math.random()*800; y = 620; break;
         default: x = -20; y = Math.random()* 600; 
       }
+      
+      //diff enemy types based on mission
+      const baseSpeed = 1 + (mission.id * 0.15);
+      const types = [
+        { speed: baseSpeed, size: 15, color: '#ef4444' },
+        { speed: baseSpeed * 1.5, size: 12, color: '#f48536ff' }, //missile
+        { speed: baseSpeed * 0.7, size: 20, color: '#b31f1fff' }, //tank
+      ]
+      const type = types[Math.floor(Math.random() * Math.min(types.length, mission.id))];
 
       state.enemies.push({
         x, y,
-        size: 15,
-        speed: 1 + Math.random() * 0.5,
+        size: type.size,
+        speed: type.speed,
+        color: type.color,
         pulse: Math.random() * Math.PI * 2
+      });
+    }
+
+    //spawn power ups
+    function spawnPowerUp() {
+      const margin = 6-;
+      const x = margin + Math.random() * (800 - margin*2);
+      const y = margin + Math.random() * (600 - margin*2);
+
+      const PUType = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+
+      state.powerUps.push({
+        x, y,
+        size: 16,
+        type: PUType.type,
+        sign: PUType.sign,
+        color: PUType.color,
+        duration: PUType.duration,
+        pulse: Math.random() * Math.PI * 2,
+        lifetime: 15
       });
     }
 
@@ -381,6 +444,21 @@ function GameScreen({ mission, onGameEnd }) {
 
       state.time += dt;
       state.player.invulnerable = Math.max(0, state.player.invulnerable - dt);
+      state.powerUpTimer = Math.max(0, state.player.invulnerable-dt);
+      state.comboTimer = Math.max(0, state.comboTimer - dt);
+
+      if ( state.comboTimer <= 0) state.combo = 0;
+
+      //power up expireation
+      if ( state.powerUpTimer <= 0 && state.activePowerUp) {
+        if ( state.activePowerUp === 'speed') {
+          state.player.speed = state.player.baseSpeed;
+        }
+        if (state.activePowerUp === 'shield') {
+          state.player.hasShield = false;
+        }
+        state.activePowerUp = null;
+      }
 
       //player movement
       const p = state.player;
@@ -399,8 +477,22 @@ function GameScreen({ mission, onGameEnd }) {
 
       p.x += dx * p.speed;
       p.y += dy * p.speed;
+
       p.x = Math.max(p.size, Math.min(800 - p.size, p.x));
       p.y = Math.max(p.size, Math.min(600 - p.size, p.y));
+
+      //magnet effect
+      if (state.activePowerUp === 'magnet') {
+        state.fragments.forEach(frag => {
+          const dx = p.x - frag.x;
+          const dy = p.y - frag.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 200 && dist > 0) {
+            frag.x += (dx / dist) * 3;
+            frag.y += (dy / dist) * 3;
+          }
+        });
+      }
 
       //update frags  
       state.fragments.forEach(frag => {
@@ -409,7 +501,16 @@ function GameScreen({ mission, onGameEnd }) {
         const dist = Math.hypot(frag.x - p.x, frag.y - p.y);
         if (dist < p.size + frag.size) {
           state.collected += 1;
-          createParticles(frag.x, frag.y, 10, '#60a5fa');
+          state.combo++;
+          state.comboTimer = 3;
+
+          createParticles(frag.x, frag.y, 12, frag.color);
+          if ( frag.value > 1) {
+            addFloatingTect(frag.x, frag.y, 12, frag.color);
+          }
+          if (state.combo > 3) {
+            addFloatingText(p.x, p.y - 30, `${state.combo}x COMBO!`, '#fbbf24');
+          }
           state.fragments = state.fragments.filter(f => f !== frag);
 
           //check win condition
@@ -420,12 +521,48 @@ function GameScreen({ mission, onGameEnd }) {
               fragmentsCollected: state.collected,
               goal: state.goal,
               timeTaken: Math.floor(state.time),
-              reward: mission.reward
+              powerUpsCollected: state.powerUpsCollected
             });
             return;
           }
         }
       });
+      //update power ups
+      state.powerUps.forEach(powerUp => {
+        powerUp.pulse += dt * 4;
+        powerUp.lifetime -= dt;
+
+        const dist = Math.hypot(powerUp.x - p.x, powerUp.y - p.y);
+        addFloatingText(powerUp.x, powerUp.y, powerUp.sign, powerUp.color);
+        if (dist < p.size + powerUp.size) {
+          state.powerUpsCollected++;
+          createParticles(powerUp.x, powerUp.y, 15, powerUp.color);
+          addFloatingText(powerUp.x, powerUp.y, powerUp.sign, powerUp.color);
+
+          if (powerUp.type === 'shield') {
+            state.player.hasShield = true;
+            state.activePowerUp = 'shie;d';
+            state.powerUpTimer = powerUp.duration;
+          } else if (powerUp.type === 'speed') {
+            state.player.speed = state.player.baseSpeed * 1.7;
+            state.activePowerUp = 'speed';
+            state.powerUpTimer = powerUp.duration;
+          } else if (powerUp.type === 'clear') {
+            state.enemies.forEach(e => {
+              createParticles(e.x, e.y, 15, '#ef4444');
+            });
+            state.enemies = [];
+            addFloatingText(400, 100, 'ENEMIES CLEARED!', '#ef4444');
+          } else if (powerUp.type === 'magnet') {
+            state.activePowerUp = 'magnet';
+            state.powerUpTimer = powerUp.duration;
+          }
+
+          state.powerUps = state.powerUps.filter(pu => pu !== powerUp);
+        }
+      });
+
+      state.powerUps = state.powerUps.filter(pu => pu.lifetime > 0);
 
       //update enemies
       state.enemies.forEach(enemy => {
@@ -433,11 +570,6 @@ function GameScreen({ mission, onGameEnd }) {
         const dx = p.x - enemy.x;
         const dy = p.y - enemy.y;
         const dist = Math.hypot(dx, dy);
-
-        if (dist > 0) {
-          enemy.vx += (dx / dist) * enemy.speed;
-          enemy.vy += (dy / dist) * enemy.speed;
-        }
 
        if (dist > 0) {
         enemy.x += (dx / dist * enemy.speed);
@@ -448,19 +580,30 @@ function GameScreen({ mission, onGameEnd }) {
         if (p.invulnerable <= 0) {
           const playerDist = Math.hypot(enemy.x - p.x, enemy.y - p.y);
           if (playerDist < p.size + enemy.size) {
-            p.health -= 1;
-            p.invulnerable = 1.5;
-            createParticles(p.x, p.y, 15, '#ef4444');
+            if (state.player.hasShield) {
+              state.player.hasShield = false;
+              state.activePowerUp = null;
+              state.powerUpTimer = 0;
+              creatieParticles(p.x, p.y, 20, '#3b82f6');
+              addFloatingText(p.x, p.y - 30, 'SHIELD BROKE!', '#3b82f6');
+            } else {
+              state.combo = 0;
+              p.health -= 1;
+              p.invulnerable = 1.5;
+              createParticles(p.x, p.y, 20, '#ef4444');
+              addFloatingText(p.x, p.y - 30, '-1 HEALTH', '#ef4444');
 
-            if (p.health <= 0) {
-              state.gameOver = true;
-              onGameEnd({
-                success: false,
-                fragmentsCollected: state.collected,
-                goal: state.goal,
-                timeTaken: Math.floor(state.time)
-              });
-              return;
+              if (p.health <= 0) {
+                state.gameOver = true;
+                onGameEnd({
+                  success: false,
+                  fragmentsCollected: state.collected,
+                  goal: state.goal,
+                  timeTaken: Math.floor(state.time),
+                  powerUpsCollected: state.powerUpsCollected
+                });
+                return;
+              }
             }
           }
         }
@@ -476,6 +619,13 @@ function GameScreen({ mission, onGameEnd }) {
       });
       state.particles = state.particles.filter(p => p.life > 0);
 
+      //update floating texts
+      state.floatingTexts.forEach(text => {
+        text.y += text.vy * dt * 30;
+        text.life -= dt;
+      });
+      state.floatingTexts = state.floatingTexts.filter(t => t.life > 0);
+
       //spawn fragments
       state.spawnTimer += dt;
       if (state.spawnTimer > 2 && state.fragments.length < 15) {
@@ -485,12 +635,20 @@ function GameScreen({ mission, onGameEnd }) {
 
       //spawn enemies
       state.enemySpawnTimer += dt;
-      const enemySpawnRate = Math.max(1.5, 3.5 - state.time * 0.05);
+      const enemySpawnRate = Math.max(1.2, 3 - state.time * 0.05 - mission.id * 0.2);
       if (state.enemySpawnTimer > enemySpawnRate) {
         state.enemySpawnTimer = 0;
-        if (state.enemies.length < 10) {
+        const maxEnemies = 8 + mission.id*2
+        if (state.enemies.length < maxEnemies) {
           spawnEnemy();
         }
+      }
+
+      //spawn power ups
+      state.powerUpSpawnTimer += dt;
+      if (state.powerUpSpawnTimer > 12 && state.powerUps.length < 2) {
+        state.powerUpSpawnTimer = 0;
+        spawnPowerUp();
       }
 
       //update ui
@@ -499,8 +657,11 @@ function GameScreen({ mission, onGameEnd }) {
         goal: state.goal,
         health: state.player.health,
         time: Math.floor(state.time),
-        progress: (state.collected / state.goal) * 100
+        progress: (state.collected / state.goal) * 100,
+        activePowerUp: state.activePowerUp,
+        powerTimer: Math.ceil(state.powerUpTimer)
       });
+
       draw(ctx, state);
       requestAnimationFrame(loop);
     };
@@ -513,7 +674,6 @@ function GameScreen({ mission, onGameEnd }) {
     };
   }, [mission, onGameEnd]);
 
-  //add mission header and progress bar
   return (
     <div className="space-y-4">
 
@@ -521,11 +681,12 @@ function GameScreen({ mission, onGameEnd }) {
       <div className="bg-slate-900/50 border border-cyan-500/50 rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <div className="text-cyan-300 text-sm">Mission: {mission.name}</div>
+            <div className="text-cyan-300 text-sm">{mission.name}</div>
             <div className="text-2xl font-bold text-white">
-              {uiState.collected} / {uiState.goal} Fragments
+              {uiState.collected} / {uiState.goal} 
             </div>
           </div>
+          {/*add part abt power ups*/}
           <div className="text-right">
             <div className="text-red-300 text-sm">Health</div>
             <div className="text-2xl flex gap-1">
@@ -602,8 +763,9 @@ function draw(ctx, state) {
     ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
     ctx.fill();
   });
+  //add magnet effect radius while that power up is active
 
-  //fragments
+  //fragments, add the variety for the diff types listed above
   state.fragments.forEach(frag => {
     const pulse = Math.sin(frag.pulse) * 0.3 + 1;
     //glow
@@ -625,9 +787,12 @@ function draw(ctx, state) {
     ctx.beginPath();
     ctx.arc(frag.x - 4, frag.y - 4, 4, 0, Math.PI*2);
     ctx.fill();
-  });
 
-  //enemies
+    //add a value indicator for higher value frags
+  });
+  //add one for power ups
+
+  //enemies add variety (missle & tank)
   state.enemies.forEach(enemy => {
     const pulse = Math.sin(enemy.pulse)*0.2 + 1;
 
@@ -662,7 +827,9 @@ function draw(ctx, state) {
   });
   //player
   const p = state.player;
-  //shield
+  //add shield effect specific to that power up
+
+  //invulnerability flash
   if (p.invulnerable > 0) {
     const alpha = Math.sin(state.time * 20) * 0.5 + 0.5;
     ctx.strokeStyle = `rgba(96, 165, 250, ${alpha})`;
@@ -671,7 +838,10 @@ function draw(ctx, state) {
     ctx.arc(p.x, p.y, p.size + 8, 0, Math.PI*2);
     ctx.stroke();
   }
+  
+  //add the trail visible when speed is boosted
 
+  //player glow
   const playerGlow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2.5);
   playerGlow.addColorStop(0, 'rgba(96, 165, 250, 0.8)');
   playerGlow.addColorStop(1, 'rgba(96, 165, 250, 0)');
@@ -695,6 +865,11 @@ function draw(ctx, state) {
   ctx.beginPath();
   ctx.arc(p.x - 6, p.y - 6, 5, 0, Math.PI*2);
   ctx.fill();
+
+  //add a combo display
+
+  //add floating texts
+  
 }
 
 
