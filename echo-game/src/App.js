@@ -1,3 +1,48 @@
+/*
+world lore:
+-name: Panopticon
+-backstory: after the collapse of 3042, humanity's consciousness was digitalized into "Echos", 
+vast repositries of our collective memory -- science, art, history, love, fear...
+These Echos drift mindlessly through the Panopticon, a digital purgatory
+You are Subject 77, a "Memory Extractor" directed by the Overseer, an AI model left behind programmed
+to collect the fragments of human memories left behind to prevent total data decay
+At the same time, however, you start realizing that you are decaying yourself as well
+Realizing that you're conciousness is falling apart and that you've already lost parts of your memory,
+you begin desperately buiding a "home" out of stolen memories to anchor your own existence
+Thus, each collected (somewhat) hollistic memory fragment can be installed into your home base
+These memory types include:
+- Art (Beauty/morale), used to install cosmetic upgrades or reduce degradation rate
+- Science, used to unlock upgrades and better tech
+- History, these contain knowledge, helping you piece together what really happened (the subject doesn't
+know about the collapse initially, and is immediately ushered to work collecting echos)
+They also reveal shortcuts, map data or hidden caches
+- Emotion, used to stabilize, increase max health and slow the entropy taking place
+The user must build defenses and stabilizers or they will be either erased or lose conciousness
+Their base is periodically attacked by Sentinels, mindless beings looking to consume any shard of remainging order
+You try desperately to contact the Overseer to warn them of the incoming attack, believing Sentinels are antagonistic AI.
+ PLOT TWIST! The sentinels are actually what used to be the humans, and the Overseer actually encourages their downward spiral
+Story Arc:
+- Early game: Lost contact with the Overseer but follows their instructions, just surviving
+- Mid game: Building elaborate defenses, hoarding memories
+- Late game: Revelation - by preserving these memories, you're becoming more human
+- End game: Choice - Submit to erasure, or rebel using your accumulated humanity?
+
+Resource Types
+
+Raw Fragments (from extraction runs) - base currency
+Specialized Memories (Each shard is a few sentences):
+- Science Shards
+- Art Shards
+- History Shards
+- Emotion Shards
+
+Rare Artifacts: Special memories with unique properties
+
+Siege Mechanics: Between runs, Sentinels attack in waves, and your defenses auto-fire
+If they breach your Core, you lose stored resources. Higher-level defenses = safer storage
+
+*/
+
 import React, { useState, useEffect, useRef } from 'react';
 
 const STORY_CHAPTERS = [
@@ -21,7 +66,7 @@ const STORY_CHAPTERS = [
     text:"The Grid is counting on you. Every fragment brings us closer to restoration.",
     instruction:"Move with WASD/arrows. Collect fragments. Survive.",
   }
-]
+];
 
 //missions
 const MISSIONS = [
@@ -63,6 +108,7 @@ export default function App() {
     setCurrentMission(mission);
     setScreen('game');
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 p-4 flex items-center justify-center">
       <div className="max-w-5xl w-full">
@@ -206,7 +252,7 @@ function MissionSelectScreen({ missions, onSelectMission, lastRunResult }) {
             <div className="font-bold text-blue-300">Speed</div>
             <div className="text-xs text-slate-400">Move faster</div> 
           </div>
-          <div className="bg-red-900/20 border border-rede-500/30 rounded p-3 text-center">
+          <div className="bg-red-900/20 border border-red-500/30 rounded p-3 text-center">
             <div className="text-3xl mb-1">clear art</div>
             <div className="font-bold text-blue-300">Clear</div>
             <div className="text-xs text-slate-400">Remove enemies</div> 
@@ -230,7 +276,7 @@ function MissionCard({ mission, onSelect }) {
     Medium: 'text-yellow-400',
     Hard: 'text-orange-400',
     Expert: 'text-red-400'
-  }
+  };
 
   return (
     <div className={`border-2 rounded-xl p-6 transition-all ${
@@ -368,10 +414,10 @@ function GameScreen({ mission, onGameEnd }) {
 
       const types = [
         { value: 1, size: 10, color:'#60a5fa', },
-        { value: 2, size: 14, color:'#4980ffff', },
-        { value: 3, size: 16, color:'#3140e4ff', }
+        { value: 2, size: 14, color:'#4980ff', },
+        { value: 3, size: 16, color:'#3140e4', }
       ];
-      const type = types[Math.imul(Math.floor(Math.random() * (1 + mission.id * 0.5)), 2)];
+      const type = types[Math.min(Math.floor(Math.random() * (1 + mission.id * 0.5)), 2)];
 
       state.fragments.push({
         x, y,
@@ -396,8 +442,8 @@ function GameScreen({ mission, onGameEnd }) {
       const baseSpeed = 1 + (mission.id * 0.15);
       const types = [
         { speed: baseSpeed, size: 15, color: '#ef4444' },
-        { speed: baseSpeed * 1.5, size: 12, color: '#f48536ff' }, //missile
-        { speed: baseSpeed * 0.7, size: 20, color: '#b31f1fff' }, //tank
+        { speed: baseSpeed * 1.5, size: 12, color: '#f48536' }, //missile
+        { speed: baseSpeed * 0.7, size: 20, color: '#b31f1f' }, //tank
       ]
       const type = types[Math.floor(Math.random() * Math.min(types.length, mission.id))];
 
@@ -412,7 +458,7 @@ function GameScreen({ mission, onGameEnd }) {
 
     //spawn power ups
     function spawnPowerUp() {
-      const margin = 6-;
+      const margin = 6;
       const x = margin + Math.random() * (800 - margin*2);
       const y = margin + Math.random() * (600 - margin*2);
 
@@ -443,7 +489,7 @@ function GameScreen({ mission, onGameEnd }) {
       last = now;
 
       state.time += dt;
-      state.player.invulnerable = Math.max(0, state.player.invulnerable - dt);
+      //state.player.invulnerable = Math.max(0, state.player.invulnerable - dt);
       state.powerUpTimer = Math.max(0, state.player.invulnerable-dt);
       state.comboTimer = Math.max(0, state.comboTimer - dt);
 
@@ -506,7 +552,7 @@ function GameScreen({ mission, onGameEnd }) {
 
           createParticles(frag.x, frag.y, 12, frag.color);
           if ( frag.value > 1) {
-            addFloatingTect(frag.x, frag.y, 12, frag.color);
+            addFloatingText(frag.x, frag.y, `+${frag.value}`, frag.color);
           }
           if (state.combo > 3) {
             addFloatingText(p.x, p.y - 30, `${state.combo}x COMBO!`, '#fbbf24');
@@ -541,7 +587,7 @@ function GameScreen({ mission, onGameEnd }) {
 
           if (powerUp.type === 'shield') {
             state.player.hasShield = true;
-            state.activePowerUp = 'shie;d';
+            state.activePowerUp = 'shield';
             state.powerUpTimer = powerUp.duration;
           } else if (powerUp.type === 'speed') {
             state.player.speed = state.player.baseSpeed * 1.7;
@@ -584,7 +630,7 @@ function GameScreen({ mission, onGameEnd }) {
               state.player.hasShield = false;
               state.activePowerUp = null;
               state.powerUpTimer = 0;
-              creatieParticles(p.x, p.y, 20, '#3b82f6');
+              createParticles(p.x, p.y, 20, '#3b82f6');
               addFloatingText(p.x, p.y - 30, 'SHIELD BROKE!', '#3b82f6');
             } else {
               state.combo = 0;
@@ -659,7 +705,7 @@ function GameScreen({ mission, onGameEnd }) {
         time: Math.floor(state.time),
         progress: (state.collected / state.goal) * 100,
         activePowerUp: state.activePowerUp,
-        powerTimer: Math.ceil(state.powerUpTimer)
+        powerUpTimer: Math.ceil(state.powerUpTimer)
       });
 
       draw(ctx, state);
@@ -763,21 +809,31 @@ function draw(ctx, state) {
     ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
     ctx.fill();
   });
-  //add magnet effect radius while that power up is active
 
-  //fragments, add the variety for the diff types listed above
+  //magnet effect radius
+  if (state.activePowerUp === 'magnet') {
+    ctx.strokeStyle = 'rgba(168, 85, 247, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.arc(state.player.x, state.player.y, 200, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  //fragments
   state.fragments.forEach(frag => {
     const pulse = Math.sin(frag.pulse) * 0.3 + 1;
     //glow
     const glowGrad = ctx.createRadialGradient(frag.x, frag.y, 0, frag.x, frag.y, frag.size * 3);
-    glowGrad.addColorStop(0, 'rgba(96, 165, 250, 0.8)');
-    glowGrad.addColorStop(1, 'rgba(96, 165, 250, 0)');
+    glowGrad.addColorStop(0, frag.color + 'CC');
+    glowGrad.addColorStop(1, frag.color + '00');
     ctx.fillStyle = glowGrad;
     ctx.beginPath();
     ctx.arc(frag.x, frag.y, frag.size * 3, 0, Math.PI*2);
     ctx.fill();
     //core
-    ctx.fillStyle = '#60a5fa';
+    ctx.fillStyle = frag.color;
     ctx.beginPath();
     ctx.arc(frag.x, frag.y, frag.size *pulse, 0, Math.PI*2);
     ctx.fill();
@@ -785,31 +841,66 @@ function draw(ctx, state) {
     //highlight
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.beginPath();
-    ctx.arc(frag.x - 4, frag.y - 4, 4, 0, Math.PI*2);
+    ctx.arc(frag.x - frag.size*0.3, frag.y - frag.size*0.3, frag.size*0.3, 0, Math.PI*2);
     ctx.fill();
 
-    //add a value indicator for higher value frags
+    //value indicator for higher value frags
+    if (frag.value > 1) {
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`x${frag.value}`, frag.x, frag.y + frag.size + 12);
+    }
   });
-  //add one for power ups
 
-  //enemies add variety (missle & tank)
+  //power ups
+  state.powerUps.forEach(powerUp => {
+    const pulse = Math.sin(powerUp.pulse)*0.4 + 1;
+    const flickerWarning = powerUp.lifetime < 3 && Math.sin(powerUp.lifetime * 10) > 0;
+
+    if (flickerWarning && Math.floor(powerUp.lifetime * 10) % 2 === 0) return;
+
+    //glow
+    const glowGrad = ctx.createRadialGradient(powerUp.x, powerUp.y, 0, powerUp.x, powerUp.y, powerUp.size*4);
+    glowGrad.addColorStop(0, powerUp.color + 'AA');
+    glowGrad.addColorStop(1, powerUp.color + '00');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(powerUp.x, powerUp.y, powerUp.size*4, 0, Math.PI*2);
+    ctx.fill();
+
+    //ring
+    ctx.strokeStyle = powerUp.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(powerUp.x, powerUp.y, powerUp.size*pulse, 0, Math.PI*2);
+    ctx.stroke();
+
+    //sign
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(powerUp.sign, powerUp.x, powerUp.y);
+  });
+
+  //enemies
   state.enemies.forEach(enemy => {
     const pulse = Math.sin(enemy.pulse)*0.2 + 1;
 
     //glow
     const glowGrad = ctx.createRadialGradient(enemy.x, enemy.y, 0, enemy.x, enemy.y, enemy.size * 3);
-    glowGrad.addColorStop(0, 'rgba(239, 68, 68, 0.6)');
-    glowGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    glowGrad.addColorStop(0, enemy.color + '99');
+    glowGrad.addColorStop(1, enemy.color + '00');
     ctx.fillStyle = glowGrad;
     ctx.beginPath();
     ctx.arc(enemy.x, enemy.y, enemy.size * 3, 0, Math.PI*2);
     ctx.fill();
     //core
-    ctx.fillStyle = '#ef4444';
+    ctx.fillStyle = enemy.color;
     ctx.beginPath();
     ctx.arc(enemy.x, enemy.y, enemy.size * pulse, 0, Math.PI*2);
     ctx.fill();
-    
+
+    //spikes
     for (let i = 0; i < 6; i++) {
       const angle = (Math.PI * 2 * i) / 6 + enemy.pulse;
       const x1 = enemy.x + Math.cos(angle) * enemy.size * 0.7;
@@ -827,8 +918,22 @@ function draw(ctx, state) {
   });
   //player
   const p = state.player;
-  //add shield effect specific to that power up
+  //shield effect
+  if (p.hasshield) {
+    const shieldPulse = Math.sin(state.time * 3)*0.2 + 1;
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, (p.size + 10) * shieldPulse, 0, Math.PI*2);
+    ctx.stroke();
 
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, (p.size + 15) * shieldPulse, 0, Math.PI*2);
+    ctx.stroke();
+  }
+ 
   //invulnerability flash
   if (p.invulnerable > 0) {
     const alpha = Math.sin(state.time * 20) * 0.5 + 0.5;
@@ -839,7 +944,13 @@ function draw(ctx, state) {
     ctx.stroke();
   }
   
-  //add the trail visible when speed is boosted
+  //speed boost trail
+  if (state.activePowerUp === 'speed') {
+    ctx.fillStyle = 'rgba(234, 179, 8, 0.3)';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size*2, 0, Math.PI*2);
+    ctx.fill();
+  }
 
   //player glow
   const playerGlow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2.5);
@@ -866,10 +977,34 @@ function draw(ctx, state) {
   ctx.arc(p.x - 6, p.y - 6, 5, 0, Math.PI*2);
   ctx.fill();
 
-  //add a combo display
+  //combo display
+  if (state.combo > 3) {
+    ctx.save();
+    ctx.font = 'bold 32px monospace';
+    ctx.fillStyle = '#fbbf24';
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 4;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const comboText = `${state.combo}x COMBO!`;
+    ctx.strokeText(comboText, 400, 80);
+    ctx.fillText(comboText, 400, 80);
+    ctx.restore();
+  }
 
-  //add floating texts
-  
+  //floating texts
+  state.floatingTexts.forEach(text => {
+    ctx.save();
+    const alpha = text.life;
+    ctx.font = 'bold 16px monospace';
+    ctx.fillStyle = text.color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
+    ctx.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
+    ctx.lineWidth = 3;
+    ctx.textAlign = 'center';
+    ctx.strokeText(text.text, text.x, text.y);
+    ctx.fillText(text.text, text.x, text.y);
+    ctx.restore();
+  });
 }
 
 
