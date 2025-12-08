@@ -497,9 +497,15 @@ function GameScreen({ difficulty, onGameEnd }) {
     for (let i = 0; i < 5; i++) spawnEnemy();
 
     let last = performance.now();
+    let animationFrameId = null;
 
     const loop = (now) => {
-      if (state.gameOver) return;
+      if (state.gameOver) {
+        if (animationFrameId) {
+          window.cancelAnimationFrame(animationFrameId);
+        }
+        return;
+      }
 
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
@@ -663,6 +669,10 @@ function GameScreen({ difficulty, onGameEnd }) {
 
               if (p.health <= 0) {
                 state.gameOver = true;
+                
+                //cancel animation frame
+                window.cancelAnimationFrame(loop);
+                
                 const isNewHighScore = state.collected > (parseInt(localStorage.getItem('highScore') || '0'));
                 if (isNewHighScore) {
                   localStorage.setItem('highScore', state.collected.toString());
@@ -722,27 +732,34 @@ function GameScreen({ difficulty, onGameEnd }) {
         spawnPowerUp();
       }
 
+      //update UI
       setUiState({
-        collected: state.collected,
-        health: Math.max(0, state.player.health),
-        maxHealth: Math.max(1, state.player.maxHealth),
-        time: Math.floor(state.time),
-        wave: state.wave,
-        activePowerUp: state.activePowerUp,
-        powerUpTimer: Math.ceil(state.powerUpTimer),
-        enemyCount: state.enemies.length,
-        difficultyMultiplier: state.difficultyMultiplier,
-        nextWaveIn: Math.max(0, Math.ceil(30 - state.waveTimer)),
-        isBossWave: state.isBossWave
+        collected: Math.max(0, state.collected) || 0,
+        health: Math.max(0, Math.min(state.player.maxHealth, state.player.health)) || 0,
+        maxHealth: Math.max(1, state.player.maxHealth) || 3,
+        time: Math.max(0, Math.floor(state.time)) || 0,
+        wave: Math.max(1, state.wave) || 1,
+        activePowerUp: state.activePowerUp || null,
+        powerUpTimer: Math.max(0, Math.ceil(state.powerUpTimer)) || 0,
+        enemyCount: Math.max(0, state.enemies.length) || 0,
+        difficultyMultiplier: Math.max(1, state.difficultyMultiplier) || 1.0,
+        nextWaveIn: Math.max(0, Math.ceil(30 - state.waveTimer)) || 0,
+        isBossWave: state.isBossWave || false
       });
 
       draw(ctx, state);
-      requestAnimationFrame(loop);
+      
+      if (!state.gameOver) {
+        animationFrameId = requestAnimationFrame(loop);
+      }
     };
 
-    requestAnimationFrame(loop);
+    animationFrameId = requestAnimationFrame(loop);
 
     return () => {
+      if (animationFrameId) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
@@ -767,7 +784,7 @@ function GameScreen({ difficulty, onGameEnd }) {
           <div className="game-stat-right">
             <div className="game-stat-label">Health</div>
             <div className="game-health">
-              {Array(Math.max(0, uiState.health || 0)).fill('heart').map((h, i) => <span key={`heart-${i}`}>{h}</span>)}
+              {Array(Math.max(0, uiState.health || 0)).fill('❤️').map((h, i) => <span key={`heart-${i}`}>{h}</span>)}
               {Array(Math.max(0, (uiState.maxHealth || 3) - (uiState.health || 0))).fill('🖤').map((h, i) => <span key={`empty-${i}`}>{h}</span>)}
             </div>
           </div>
@@ -798,7 +815,7 @@ function GameScreen({ difficulty, onGameEnd }) {
 
       <div className="game-controls">
         <div className="game-controls-text">
-          Use WASD or Arrow Keys
+          Use WASD or Arrow Keys • Collect fragments • Avoid enemies • Survive!
         </div>
         <div className="game-controls-info">
           Time: {uiState.time}s • Difficulty: x{uiState.difficultyMultiplier.toFixed(1)}
@@ -809,6 +826,9 @@ function GameScreen({ difficulty, onGameEnd }) {
 }
 
 function draw(ctx, state) {
+  //safety check
+  if (!ctx || !state || !state.player) return;
+  
   const bgGrad = ctx.createRadialGradient(400, 300, 0, 400, 300, 600);
   bgGrad.addColorStop(0, '#1e293b');
   bgGrad.addColorStop(1, '#0f172a');
