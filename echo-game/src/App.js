@@ -44,118 +44,100 @@ If they breach your Core, you lose stored resources. Higher-level defenses = saf
 */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Shield, Zap, Trash2, Magnet, Trophy, TrendingUp } from 'lucide-react';
+import './App.css';
 
 const STORY_CHAPTERS = [
   {
-    title:"System Failure",
-    text:"The Grid has collapsed. You are a Recovery AI, designed to rebuild the Core Node by collecting scattered data fragments.",
-    instruction:"Your mission: Restore 100 fragments to stabilize the system.",
-  },
-  {
-    title:"Corruption Detected",
-    text:"Warning: Hostile entities detected. These are corrupted processes trying to prevent recovery.",
-    instruction:"Avoid corruption at all costs. Three hits and you'll need to restart.",
-  },
-  {
-    title: "Power Ups",
-    text: "Good news! The Grid has defense mechanisms! Collect power ups to gain temporary abilities!",
-    instruction: "Shield / Speed Boost / Clear Zone / Magnet"
-  },
-  {
-    title:"Begin Recovery",
-    text:"The Grid is counting on you. Every fragment brings us closer to restoration.",
-    instruction:"Move with WASD/arrows. Collect fragments. Survive.",
+    title: "SYSTEM REBOOT",
+    text: "Welcome, Subject 77. I am the Overseer. You have been activated to perform Memory Extraction Protocol. Your mission is simple: survive and collect. There is no end, only progression.",
+    instruction: "Enter the Maze. Collect fragments. Survive as long as you can.",
   }
 ];
 
-//missions
-const MISSIONS = [
-  { id: 1, name: "First Recovery", goal: 50, unlocked: true, completed: false, reward: "Mission Complete!" },
-  { id: 2, name: "Deep Scan", goal: 100, unlocked: false, completed: false, reward: "System Stabilized!" },
-  { id: 3, name: "Core Rebuild", goal: 200, unlocked: false, completed: false, reward: "Core Online!" },
-  { id: 4, name: "Final Restoration", goal: 300, unlocked: false, completed: false, reward: "Grid Restored!" }
-];
-
 export default function App() {
-  const [screen, setScreen] = useState('story');
-  const [storyIndex, setStoryIndex] = useState(0);
+  const [screen, setScreen] = useState('awakening');
+  
+  //stats
+  const [stats, setStats] = useState({
+    totalFragments: 0,
+    highScore: 0,
+    longestSurvival: 0,
+    totalRuns: 0,
+    totalKills: 0,
+    powerUpsCollected: 0
+  });
+  
   const [lastRunResult, setLastRunResult] = useState(null);
-  const [missions, setMissions] = useState(MISSIONS);
-  const [currentMission, setCurrentMission] = useState(null);
-  const [totalFragments, setTotalFragments] = useState(0);
+  const [difficulty, setDifficulty] = useState('normal');
 
-  const onCombatEnd = (result) => {
-    setTotalFragments(prev => prev + result.fragmentsCollected);
+  const onGameEnd = (result) => {
+    setStats(prev => ({
+      totalFragments: prev.totalFragments + result.fragmentsCollected,
+      highScore: Math.max(prev.highScore, result.fragmentsCollected),
+      longestSurvival: Math.max(prev.longestSurvival, result.timeSurvived),
+      totalRuns: prev.totalRuns + 1,
+      totalKills: prev.totalKills + (result.enemiesDestroyed || 0),
+      powerUpsCollected: prev.powerUpsCollected + result.powerUpsCollected
+    }));
+    
     setLastRunResult(result);
-
-    //mission completion checker
-    if (currentMission && result.fragmentsCollected >= currentMission.goal) {
-      setMissions(prev => prev.map(m => {
-        if (m.id === currentMission.id) {
-          return { ...m, completed: true };
-        }
-        if (m.id === currentMission.id + 1) {
-          return { ...m, unlocked: true };
-        }
-        return m;
-      }));
-    }
-
-    setScreen("missionSelect");
+    setScreen("menu");
   };
 
-  const startMission = (mission) => {
-    setCurrentMission(mission);
+  const startGame = (selectedDifficulty) => {
+    setDifficulty(selectedDifficulty);
     setScreen('game');
   };
 
+  const handleAwakeningComplete = () => {
+    setScreen('menu');
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 p-4 flex items-center justify-center">
-      <div className="max-w-5xl w-full">
-        <div className="bg-black/50 backdrop-blur-lg rounded-3xl p-8 border-2 border-cyan-500/30 shadow-2xl">
-          {/*header */}
-          <div className="text-center mb-8">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent mb-2">
-                Echo
-            </h1>
-            <div className="flex gap-6 justify-center mt-4">
-              <div className="bg-cyan-900/30 border border-cyan-500/50 rounded-xl px-6 py-2">
-                <div className="text-cyan-300 text-xs">Total Fragments Recovered</div>
-                <div className="text-3xl font-bold text-white">{totalFragments}</div>
+    <div className="app-container">
+      <div className="app-wrapper">
+        <div className="app-card">
+          {/* Header */}
+          <div className="app-header">
+            <h1 className="app-title">Echo</h1>
+            {screen !== 'awakening' && (
+              <div className="stats-grid">
+                <div className="stat-card stat-cyan">
+                  <div className="stat-label">High Score</div>
+                  <div className="stat-value">{stats.highScore}</div>
+                </div>
+                <div className="stat-card stat-purple">
+                  <div className="stat-label">Longest Survival</div>
+                  <div className="stat-value">{stats.longestSurvival}s</div>
+                </div>
+                <div className="stat-card stat-green">
+                  <div className="stat-label">Total Runs</div>
+                  <div className="stat-value">{stats.totalRuns}</div>
+                </div>
               </div>
-              <div className="bg-purple-900/30 border border-purple-500/50 rounded-xl px-6 py-2">
-                <div className="text-purple-300 text-xs">Missions Completed</div>
-                <div className="text-3xl font-bold text-white">{missions.filter(m => m.completed).length}/{missions.length}</div>
-              </div>
-            </div>
+            )}
           </div>
-          {/*story screen*/}
-          {screen === 'story' && (
-            <Story
-              chapter={STORY_CHAPTERS[storyIndex]}
-              onAdvance={() => {
-                if (storyIndex < STORY_CHAPTERS.length-1) {
-                  setStoryIndex(prev => prev + 1);
-                } else {
-                  setScreen('missionSelect');
-                }
-              }}
-            />
+
+          {/* Awakening Screen */}
+          {screen === 'awakening' && (
+            <AwakeningScreen onComplete={handleAwakeningComplete} />
           )}
-          {/*misison select*/}
-          {screen === "missionSelect" && (
-            <MissionSelectScreen
-              missions={missions}
-              onSelectMission={startMission}
+
+          {/* Main Menu */}
+          {screen === "menu" && (
+            <MenuScreen
+              stats={stats}
               lastRunResult={lastRunResult}
+              onStartGame={startGame}
             />
           )}
 
-          {/*game*/}
-          {screen === 'game' && currentMission && (
+          {/* Game */}
+          {screen === 'game' && (
             <GameScreen
-              mission={currentMission}
-              onGameEnd={onCombatEnd}
+              difficulty={difficulty}
+              onGameEnd={onGameEnd}
             />
           )}
         </div>
@@ -164,62 +146,100 @@ export default function App() {
   );
 }
 
-//update into chapter form
-function Story({ chapter, onAdvance }) {
+function AwakeningScreen({ onComplete }) {
+  const [opacity, setOpacity] = useState(0);
+  const [text, setText] = useState('');
+  const fullText = "INITIALIZING PROTOCOL...";
+
+  useEffect(() => {
+    setOpacity(1);
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < fullText.length) {
+        setText(fullText.slice(0, i + 1));
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="max-w-2xl mx-auto text-center space-y-8 py-12">
-      <div className="space-y-4">
-        <div className="text-cyan-400 text-sm font-mono uppercase tracking-wider">
-          [System Message]
-        </div>
-        <h2 className="text-4xl font-bold text-white">{chapter.title}</h2>
+    <div className="awakening-screen" style={{ opacity }}>
+      <div className="awakening-icon">Eye</div>
+      <div className="awakening-text">{text}</div>
+      <div className="awakening-description">
+        You are Subject 77, a Memory Extractor in the Panopticon. Your mission: survive the waves of corruption while collecting fragments of humanity's lost memories. How long can you last?
       </div>
-
-      <div className='bg-slate-900/50 border border-slate-700 rounded-2xl p-8'>
-        <p className="text-xl text-slate-300 leading-relaxed mb-6">
-          {chapter.text}
-        </p>
-        <div className="bg-cyan-900/20 border border-cyan-500/30 rounded-lg p-4">
-          <p className="text-cyan-300 font-semibold">{chapter.instruction}</p>
-        </div>
-      </div>
-
-      <button
-        onClick={onAdvance}
-        className="px-12 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl text-white font-bold text-xl shadow-lg shadow-cyan-500/50 transition-all transform hover:scale-105"
-      >
-        Continue
+      <button onClick={onComplete} className="btn-primary btn-large">
+        Enter Game
       </button>
     </div>
   );
 }
 
-function MissionSelectScreen({ missions, onSelectMission, lastRunResult }) {
+function MenuScreen({ stats, lastRunResult, onStartGame }) {
+  const difficulties = [
+    { 
+      id: 'easy', 
+      name: 'Training Mode', 
+      desc: 'Slower enemies, more health', 
+      color: 'green',
+      multiplier: '0.5x score'
+    },
+    { 
+      id: 'normal', 
+      name: 'Standard Protocol', 
+      desc: 'Balanced challenge', 
+      color: 'blue',
+      multiplier: '1x score'
+    },
+    { 
+      id: 'hard', 
+      name: 'Corruption Surge', 
+      desc: 'Faster enemies, less health', 
+      color: 'orange',
+      multiplier: '2x score'
+    },
+    { 
+      id: 'insane', 
+      name: 'Data Apocalypse', 
+      desc: 'Maximum chaos', 
+      color: 'red',
+      multiplier: '3x score'
+    }
+  ];
+
   return (
-    <div className="space-y-8">
+    <div className="menu-screen">
       {lastRunResult && (
-        <div className={`border-2 rounded-2xl p-6 ${
-          lastRunResult.success
-            ? 'bg-green-900/30 border-green-500/50'
-            : 'bg-red-900/30 border-red-500/50'
-        }`}>
-          <div className="text-center">
-            <div className={`text-3xl font-bold mb-2 ${
-              lastRunResult.success ? 'text-green-300' : 'text-red-300'
-            }`}>
-              {lastRunResult.success ? 'Mission Complete!' : 'Mission Failed'}
-            </div>
-            <div className="text-2xl text-white mb-4">
-              {lastRunResult.fragmentsCollected} / {lastRunResult.goal} Fragments Recovered
-            </div>
-            {lastRunResult.success && (
-              <div className="text-lg text-green-300 font-semibold">
-                {lastRunResult.reward}
+        <div className="result-card">
+          <div className="result-content">
+            <div className="result-title">Run Complete</div>
+            <div className="result-stats-grid">
+              <div>
+                <div className="result-label">Fragments</div>
+                <div className="result-value">{lastRunResult.fragmentsCollected}</div>
               </div>
-            )}
-            {!lastRunResult.success && (
-              <div className="text-slate-300">
-                You were overwhelmed by corruption. Try Again!
+              <div>
+                <div className="result-label">Survival Time</div>
+                <div className="result-value">{lastRunResult.timeSurvived}s</div>
+              </div>
+              <div>
+                <div className="result-label">Enemies</div>
+                <div className="result-value">{lastRunResult.enemiesDestroyed}</div>
+              </div>
+              <div>
+                <div className="result-label">Wave</div>
+                <div className="result-value">{lastRunResult.waveReached}</div>
+              </div>
+            </div>
+            {lastRunResult.isNewHighScore && (
+              <div className="new-highscore">
+                <Trophy className="trophy-icon" />
+                NEW HIGH SCORE!
               </div>
             )}
           </div>
@@ -227,129 +247,110 @@ function MissionSelectScreen({ missions, onSelectMission, lastRunResult }) {
       )}
 
       <div>
-        <h2 className="text-3xl font-bold text-white mb-6 text-center">Select Mission</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {missions.map(mission => (
-            <MissionCard
-              key={mission.id}
-              mission={mission}
-              onSelect={() => onSelectMission(mission)}
-            />
+        <h2 className="section-title">Select Difficulty</h2>
+        <div className="difficulty-grid">
+          {difficulties.map(diff => (
+            <button
+              key={diff.id}
+              onClick={() => onStartGame(diff.id)}
+              className={`difficulty-card difficulty-${diff.color}`}
+            >
+              <h3 className="difficulty-name">{diff.name}</h3>
+              <p className="difficulty-desc">{diff.desc}</p>
+              <div className="difficulty-multiplier">{diff.multiplier}</div>
+            </button>
           ))}
         </div>
       </div>
 
-      <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-cyan-300 mb-3">Power Ups Guide</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <div className="bg-blue-900/20 border border-blue-500/30 rounded p-3 text-center">
-            <div className="text-3xl mb-1">shield art</div>
-            <div className="font-bold text-blue-300">Shield</div>
-            <div className="text-xs text-slate-400">Counter one hit from enemies</div> 
+      <div className="info-card">
+        <h3 className="info-title">Power-Ups</h3>
+        <div className="powerup-grid">
+          <div className="powerup-item powerup-blue">
+            <Shield className="powerup-icon" />
+            <div className="powerup-name">Shield</div>
+            <div className="powerup-desc">Block one hit</div>
           </div>
-          <div className="bg-yellow-900/20 border border-yellow-500/30 rounded p-3 text-center">
-            <div className="text-3xl mb-1">speed art</div>
-            <div className="font-bold text-blue-300">Speed</div>
-            <div className="text-xs text-slate-400">Move faster</div> 
+          <div className="powerup-item powerup-yellow">
+            <Zap className="powerup-icon" />
+            <div className="powerup-name">Speed</div>
+            <div className="powerup-desc">Move 70% faster</div>
           </div>
-          <div className="bg-red-900/20 border border-red-500/30 rounded p-3 text-center">
-            <div className="text-3xl mb-1">clear art</div>
-            <div className="font-bold text-blue-300">Clear</div>
-            <div className="text-xs text-slate-400">Remove enemies</div> 
+          <div className="powerup-item powerup-red">
+            <Trash2 className="powerup-icon" />
+            <div className="powerup-name">Clear</div>
+            <div className="powerup-desc">Destroy all enemies</div>
           </div>
-          <div className="bg-purple-900/20 border border-purple-500/30 rounded p-3 text-center">
-            <div className="text-3xl mb-1">magnet art</div>
-            <div className="font-bold text-blue-300">Magnet</div>
-            <div className="text-xs text-slate-400">Attact fragments</div> 
+          <div className="powerup-item powerup-purple">
+            <Magnet className="powerup-icon" />
+            <div className="powerup-name">Magnet</div>
+            <div className="powerup-desc">Attract fragments</div>
           </div>
         </div>
+      </div>
+
+      <div className="info-card">
+        <h3 className="info-title-features">
+          <TrendingUp className="features-icon" />
+          Features
+        </h3>
+        <ul className="features-list">
+          <li>• Difficulty increases every 30 seconds</li>
+          <li>• Enemies become faster and more numerous</li>
+          <li>• Fragment values increase over time</li>
+          <li>• Boss waves every 5 waves with special enemies</li>
+          <li>• Survive as long as you can and beat your high score!</li>
+        </ul>
       </div>
     </div>
   );
 }
 
-function MissionCard({ mission, onSelect }) {
-  const canPlay = mission.unlocked && !mission.completed;
-
-  const difficultyColors = {
-    Easy: 'text-green-400',
-    Medium: 'text-yellow-400',
-    Hard: 'text-orange-400',
-    Expert: 'text-red-400'
-  };
-
-  return (
-    <div className={`border-2 rounded-xl p-6 transition-all ${
-      mission.completed
-        ? 'bg-green-900/20 border-green-500/50'
-        : mission.unlocked
-          ? 'bg-blue-900/20 border-blue-500/50 hover:bg-blue-900/30 cursor-pointer'
-          : 'bg-slate-900/20 border-slate-700 opacity-50'
-    }`}
-    onClick={() => canPlay && onSelect()}>
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-xl font-bold text-white mb-1">{mission.name}</h3>
-          <div className="text-2xl font-bold text-cyan-300">
-            Goal: {mission.goal} Fragments
-          </div>
-        </div>
-        <div className="text-3xl">
-          {mission.completed ? '√' : mission.unlocked ? '▶' : '🔒'}
-        </div>
-      </div>
-      <div className='space-y-2'>
-        {mission.completed && (
-          <div className="text-green-400 font-semibold">
-            √ {mission.reward}
-          </div>
-        )}
-        {!mission.completed && mission.unlocked && (
-          <button className="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors">
-            Start Mission
-          </button>
-        )}
-        {!mission.unlocked && (
-          <div className="text-slate-500 text-sm">
-            Complete previous mission to unlock
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function GameScreen({ mission, onGameEnd }) {
+function GameScreen({ difficulty, onGameEnd }) {
   const canvasRef = useRef(null);
   const [uiState, setUiState] = useState({
     collected: 0,
-    goal: mission.goal,
     health: 3,
+    maxHealth: 3,
     time: 0,
-    progress: 0,
+    wave: 1,
     activePowerUp: null,
-    powerUpTimer: 0
+    powerUpTimer: 0,
+    enemyCount: 0,
+    difficultyMultiplier: 1.0,
+    nextWaveIn: 30,
+    isBossWave: false
   });
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
+    //difficulty settings
+    const difficultySettings = {
+      easy: { healthMod: 5, speedMod: 0.7, spawnMod: 1.5, scoreMultiplier: 0.5 },
+      normal: { healthMod: 3, speedMod: 1.0, spawnMod: 1.0, scoreMultiplier: 1.0 },
+      hard: { healthMod: 2, speedMod: 1.3, spawnMod: 0.7, scoreMultiplier: 2.0 },
+      insane: { healthMod: 1, speedMod: 1.6, spawnMod: 0.5, scoreMultiplier: 3.0 }
+    };
+
+    const settings = difficultySettings[difficulty];
+
     const POWERUP_TYPES = [
-      { type: 'shield', sign: 'art', color: '#3b82f6', duration: 10 },
-      { type: 'speed', sign: 'art', color: '#eab308', duration: 10 },
-      { type: 'clear', sign: 'art', color: '#ef4444', duration: 10 },
-      { type: 'magnet', sign: 'art', color: '#a855f7', duration: 10 }
-    ]
+      { type: 'shield', color: '#3b82f6', duration: 10 },
+      { type: 'speed', color: '#eab308', duration: 10 },
+      { type: 'clear', color: '#ef4444', duration: 0 },
+      { type: 'magnet', color: '#a855f7', duration: 10 }
+    ];
 
     const state = {
       player: {
-        x: 400, y:300,
+        x: 400, y: 300,
         size: 20,
         baseSpeed: 5,
         speed: 5,
-        health: 3,
-        maxHealth: 3,
+        health: settings.healthMod,
+        maxHealth: settings.healthMod,
         invulnerable: 0,
         hasShield: false
       },
@@ -360,8 +361,10 @@ function GameScreen({ mission, onGameEnd }) {
       powerUps: [],
       floatingTexts: [],
       collected: 0,
-      goal: mission.goal,
+      enemiesDestroyed: 0,
       time: 0,
+      wave: 1,
+      waveTimer: 0,
       spawnTimer: 0,
       enemySpawnTimer: 0,
       powerUpSpawnTimer: 0,
@@ -370,7 +373,9 @@ function GameScreen({ mission, onGameEnd }) {
       powerUpsCollected: 0,
       combo: 0,
       comboTimer: 0,
-      gameOver: false
+      gameOver: false,
+      difficultyMultiplier: 1.0,
+      isBossWave: false
     };
 
     const onKeyDown = (e) => {
@@ -378,19 +383,19 @@ function GameScreen({ mission, onGameEnd }) {
     };
 
     const onKeyUp = (e) => {
-      state.keys[e.key.toLowerCase()] = false; 
+      state.keys[e.key.toLowerCase()] = false;
     };
 
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
     function createParticles(x, y, count, color) {
-      for (let i=0; i < count; i++) {
-        const angle = (Math.PI*2*i)/count;
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count;
         state.particles.push({
           x, y,
-          vx: Math.cos(angle)*3,
-          vy: Math.sin(angle)*3,
+          vx: Math.cos(angle) * 3,
+          vy: Math.sin(angle) * 3,
           life: 1,
           color,
           size: 2 + Math.random() * 2
@@ -412,55 +417,68 @@ function GameScreen({ mission, onGameEnd }) {
       const x = Math.random() * 760 + 20;
       const y = Math.random() * 560 + 20;
 
+      const waveBonus = Math.floor(state.wave / 5);
       const types = [
-        { value: 1, size: 10, color:'#60a5fa', },
-        { value: 2, size: 14, color:'#4980ff', },
-        { value: 3, size: 16, color:'#3140e4', }
+        { value: 1 + waveBonus, size: 10, color: '#60a5fa' },
+        { value: 2 + waveBonus, size: 14, color: '#4980ff' },
+        { value: 3 + waveBonus, size: 16, color: '#3140e4' }
       ];
-      const type = types[Math.min(Math.floor(Math.random() * (1 + mission.id * 0.5)), 2)];
+      const type = types[Math.min(Math.floor(Math.random() * 3), 2)];
 
       state.fragments.push({
         x, y,
         size: type.size,
         value: type.value,
         color: type.color,
-        pulse: Math.random() * Math.PI* 2
+        pulse: Math.random() * Math.PI * 2
       });
     }
+
     function spawnEnemy() {
       const edge = Math.floor(Math.random() * 4);
       let x, y;
 
-      switch(edge) {
-        case 0: x = Math.random()*800; y = -20; break;
+      switch (edge) {
+        case 0: x = Math.random() * 800; y = -20; break;
         case 1: x = 820; y = Math.random() * 600; break;
-        case 2: x = Math.random()*800; y = 620; break;
-        default: x = -20; y = Math.random()* 600; 
+        case 2: x = Math.random() * 800; y = 620; break;
+        default: x = -20; y = Math.random() * 600;
       }
+
+      const baseSpeed = (1 + state.wave * 0.1) * settings.speedMod;
+      const isBoss = state.isBossWave && Math.random() < 0.3;
       
-      //diff enemy types based on mission
-      const baseSpeed = 1 + (mission.id * 0.15);
       const types = [
-        { speed: baseSpeed, size: 15, color: '#ef4444' },
-        { speed: baseSpeed * 1.5, size: 12, color: '#f48536' }, //missile
-        { speed: baseSpeed * 0.7, size: 20, color: '#b31f1f' }, //tank
-      ]
-      const type = types[Math.floor(Math.random() * Math.min(types.length, mission.id))];
+        { speed: baseSpeed, size: 15, color: '#ef4444', health: 1 },
+        { speed: baseSpeed * 1.5, size: 12, color: '#f48536', health: 1 },
+        { speed: baseSpeed * 0.7, size: 20, color: '#b31f1f', health: 2 },
+        { speed: baseSpeed * 0.5, size: 25, color: '#7f1d1d', health: 3 },
+      ];
+      
+      let type;
+      if (isBoss) {
+        type = types[3];
+      } else {
+        const maxTypeIndex = Math.min(2 + Math.floor(state.wave / 3), types.length - 1);
+        type = types[Math.floor(Math.random() * maxTypeIndex)];
+      }
 
       state.enemies.push({
         x, y,
         size: type.size,
         speed: type.speed,
         color: type.color,
-        pulse: Math.random() * Math.PI * 2
+        health: type.health,
+        maxHealth: type.health,
+        pulse: Math.random() * Math.PI * 2,
+        isBoss: isBoss
       });
     }
 
-    //spawn power ups
     function spawnPowerUp() {
-      const margin = 6;
-      const x = margin + Math.random() * (800 - margin*2);
-      const y = margin + Math.random() * (600 - margin*2);
+      const margin = 60;
+      const x = margin + Math.random() * (800 - margin * 2);
+      const y = margin + Math.random() * (600 - margin * 2);
 
       const PUType = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
 
@@ -468,7 +486,6 @@ function GameScreen({ mission, onGameEnd }) {
         x, y,
         size: 16,
         type: PUType.type,
-        sign: PUType.sign,
         color: PUType.color,
         duration: PUType.duration,
         pulse: Math.random() * Math.PI * 2,
@@ -476,9 +493,8 @@ function GameScreen({ mission, onGameEnd }) {
       });
     }
 
-    //initial spawn
-    for (let i = 0; i < 10; i++) spawnFragment();
-    for (let i = 0; i < 3; i++) spawnEnemy();
+    for (let i = 0; i < 15; i++) spawnFragment();
+    for (let i = 0; i < 5; i++) spawnEnemy();
 
     let last = performance.now();
 
@@ -489,15 +505,28 @@ function GameScreen({ mission, onGameEnd }) {
       last = now;
 
       state.time += dt;
-      //state.player.invulnerable = Math.max(0, state.player.invulnerable - dt);
-      state.powerUpTimer = Math.max(0, state.player.invulnerable-dt);
+      state.waveTimer += dt;
+      state.player.invulnerable = Math.max(0, state.player.invulnerable - dt);
+      state.powerUpTimer = Math.max(0, state.powerUpTimer - dt);
       state.comboTimer = Math.max(0, state.comboTimer - dt);
 
-      if ( state.comboTimer <= 0) state.combo = 0;
+      if (state.comboTimer <= 0) state.combo = 0;
 
-      //power up expireation
-      if ( state.powerUpTimer <= 0 && state.activePowerUp) {
-        if ( state.activePowerUp === 'speed') {
+      if (state.waveTimer >= 30) {
+        state.wave += 1;
+        state.waveTimer = 0;
+        state.difficultyMultiplier = 1 + (state.wave - 1) * 0.15;
+        state.isBossWave = state.wave % 5 === 0;
+        
+        addFloatingText(400, 100, `WAVE ${state.wave}${state.isBossWave ? ' - BOSS WAVE!' : ''}`, state.isBossWave ? '#ef4444' : '#fbbf24');
+        
+        for (let i = 0; i < 3 + state.wave; i++) {
+          spawnEnemy();
+        }
+      }
+
+      if (state.powerUpTimer <= 0 && state.activePowerUp) {
+        if (state.activePowerUp === 'speed') {
           state.player.speed = state.player.baseSpeed;
         }
         if (state.activePowerUp === 'shield') {
@@ -527,7 +556,6 @@ function GameScreen({ mission, onGameEnd }) {
       p.x = Math.max(p.size, Math.min(800 - p.size, p.x));
       p.y = Math.max(p.size, Math.min(600 - p.size, p.y));
 
-      //magnet effect
       if (state.activePowerUp === 'magnet') {
         state.fragments.forEach(frag => {
           const dx = p.x - frag.x;
@@ -540,68 +568,58 @@ function GameScreen({ mission, onGameEnd }) {
         });
       }
 
-      //update frags  
       state.fragments.forEach(frag => {
         frag.pulse += dt * 5;
-        
+
         const dist = Math.hypot(frag.x - p.x, frag.y - p.y);
         if (dist < p.size + frag.size) {
-          state.collected += 1;
+          const scoreValue = Math.floor(frag.value * settings.scoreMultiplier);
+          state.collected += scoreValue;
           state.combo++;
           state.comboTimer = 3;
 
           createParticles(frag.x, frag.y, 12, frag.color);
-          if ( frag.value > 1) {
-            addFloatingText(frag.x, frag.y, `+${frag.value}`, frag.color);
+          if (frag.value > 1) {
+            addFloatingText(frag.x, frag.y, `+${scoreValue}`, frag.color);
           }
           if (state.combo > 3) {
             addFloatingText(p.x, p.y - 30, `${state.combo}x COMBO!`, '#fbbf24');
           }
           state.fragments = state.fragments.filter(f => f !== frag);
-
-          //check win condition
-          if (state.collected >= state.goal) {
-            state.gameOver = true;
-            onGameEnd({
-              success: true,
-              fragmentsCollected: state.collected,
-              goal: state.goal,
-              timeTaken: Math.floor(state.time),
-              powerUpsCollected: state.powerUpsCollected
-            });
-            return;
-          }
         }
       });
-      //update power ups
+
       state.powerUps.forEach(powerUp => {
         powerUp.pulse += dt * 4;
         powerUp.lifetime -= dt;
 
         const dist = Math.hypot(powerUp.x - p.x, powerUp.y - p.y);
-        addFloatingText(powerUp.x, powerUp.y, powerUp.sign, powerUp.color);
         if (dist < p.size + powerUp.size) {
           state.powerUpsCollected++;
           createParticles(powerUp.x, powerUp.y, 15, powerUp.color);
-          addFloatingText(powerUp.x, powerUp.y, powerUp.sign, powerUp.color);
 
           if (powerUp.type === 'shield') {
             state.player.hasShield = true;
             state.activePowerUp = 'shield';
             state.powerUpTimer = powerUp.duration;
+            addFloatingText(powerUp.x, powerUp.y, 'SHIELD!', powerUp.color);
           } else if (powerUp.type === 'speed') {
             state.player.speed = state.player.baseSpeed * 1.7;
             state.activePowerUp = 'speed';
             state.powerUpTimer = powerUp.duration;
+            addFloatingText(powerUp.x, powerUp.y, 'SPEED!', powerUp.color);
           } else if (powerUp.type === 'clear') {
+            const destroyedCount = state.enemies.length;
+            state.enemiesDestroyed += destroyedCount;
             state.enemies.forEach(e => {
               createParticles(e.x, e.y, 15, '#ef4444');
             });
             state.enemies = [];
-            addFloatingText(400, 100, 'ENEMIES CLEARED!', '#ef4444');
+            addFloatingText(400, 100, `${destroyedCount} ENEMIES CLEARED!`, '#ef4444');
           } else if (powerUp.type === 'magnet') {
             state.activePowerUp = 'magnet';
             state.powerUpTimer = powerUp.duration;
+            addFloatingText(powerUp.x, powerUp.y, 'MAGNET!', powerUp.color);
           }
 
           state.powerUps = state.powerUps.filter(pu => pu !== powerUp);
@@ -610,19 +628,17 @@ function GameScreen({ mission, onGameEnd }) {
 
       state.powerUps = state.powerUps.filter(pu => pu.lifetime > 0);
 
-      //update enemies
       state.enemies.forEach(enemy => {
         enemy.pulse += dt * 4;
         const dx = p.x - enemy.x;
         const dy = p.y - enemy.y;
         const dist = Math.hypot(dx, dy);
 
-       if (dist > 0) {
-        enemy.x += (dx / dist * enemy.speed);
-        enemy.y += (dy / dist * enemy.speed);
-       }
+        if (dist > 0) {
+          enemy.x += (dx / dist * enemy.speed);
+          enemy.y += (dy / dist * enemy.speed);
+        }
 
-        //hit player
         if (p.invulnerable <= 0) {
           const playerDist = Math.hypot(enemy.x - p.x, enemy.y - p.y);
           if (playerDist < p.size + enemy.size) {
@@ -632,6 +648,12 @@ function GameScreen({ mission, onGameEnd }) {
               state.powerUpTimer = 0;
               createParticles(p.x, p.y, 20, '#3b82f6');
               addFloatingText(p.x, p.y - 30, 'SHIELD BROKE!', '#3b82f6');
+              enemy.health -= 1;
+              if (enemy.health <= 0) {
+                state.enemiesDestroyed++;
+                createParticles(enemy.x, enemy.y, 20, enemy.color);
+                state.enemies = state.enemies.filter(e => e !== enemy);
+              }
             } else {
               state.combo = 0;
               p.health -= 1;
@@ -641,12 +663,18 @@ function GameScreen({ mission, onGameEnd }) {
 
               if (p.health <= 0) {
                 state.gameOver = true;
+                const isNewHighScore = state.collected > (parseInt(localStorage.getItem('highScore') || '0'));
+                if (isNewHighScore) {
+                  localStorage.setItem('highScore', state.collected.toString());
+                }
+                
                 onGameEnd({
-                  success: false,
                   fragmentsCollected: state.collected,
-                  goal: state.goal,
-                  timeTaken: Math.floor(state.time),
-                  powerUpsCollected: state.powerUpsCollected
+                  timeSurvived: Math.floor(state.time),
+                  powerUpsCollected: state.powerUpsCollected,
+                  enemiesDestroyed: state.enemiesDestroyed,
+                  waveReached: state.wave,
+                  isNewHighScore
                 });
                 return;
               }
@@ -655,7 +683,6 @@ function GameScreen({ mission, onGameEnd }) {
         }
       });
 
-      //update particles
       state.particles.forEach(particle => {
         particle.x += particle.vx;
         particle.y += particle.vy;
@@ -665,47 +692,48 @@ function GameScreen({ mission, onGameEnd }) {
       });
       state.particles = state.particles.filter(p => p.life > 0);
 
-      //update floating texts
       state.floatingTexts.forEach(text => {
         text.y += text.vy * dt * 30;
         text.life -= dt;
       });
       state.floatingTexts = state.floatingTexts.filter(t => t.life > 0);
 
-      //spawn fragments
       state.spawnTimer += dt;
-      if (state.spawnTimer > 2 && state.fragments.length < 15) {
+      const fragmentSpawnRate = Math.max(1, 2 - state.wave*0.05);
+      const maxFragments = 20 + Math.floor(state.wave / 2);
+      if (state.spawnTimer > fragmentSpawnRate && state.fragments.length < maxFragments) {
         state.spawnTimer = 0;
         spawnFragment();
       }
 
-      //spawn enemies
       state.enemySpawnTimer += dt;
-      const enemySpawnRate = Math.max(1.2, 3 - state.time * 0.05 - mission.id * 0.2);
+      const enemySpawnRate = Math.max(0.8, 2.5 - state.wave*0.08) * settings.spawnMod;
       if (state.enemySpawnTimer > enemySpawnRate) {
         state.enemySpawnTimer = 0;
-        const maxEnemies = 8 + mission.id*2
+        const maxEnemies = 10 + state.wave*2;
         if (state.enemies.length < maxEnemies) {
           spawnEnemy();
         }
       }
 
-      //spawn power ups
       state.powerUpSpawnTimer += dt;
       if (state.powerUpSpawnTimer > 12 && state.powerUps.length < 2) {
         state.powerUpSpawnTimer = 0;
         spawnPowerUp();
       }
 
-      //update ui
       setUiState({
         collected: state.collected,
-        goal: state.goal,
-        health: state.player.health,
+        health: Math.max(0, state.player.health),
+        maxHealth: Math.max(1, state.player.maxHealth),
         time: Math.floor(state.time),
-        progress: (state.collected / state.goal) * 100,
+        wave: state.wave,
         activePowerUp: state.activePowerUp,
-        powerUpTimer: Math.ceil(state.powerUpTimer)
+        powerUpTimer: Math.ceil(state.powerUpTimer),
+        enemyCount: state.enemies.length,
+        difficultyMultiplier: state.difficultyMultiplier,
+        nextWaveIn: Math.max(0, Math.ceil(30 - state.waveTimer)),
+        isBossWave: state.isBossWave
       });
 
       draw(ctx, state);
@@ -714,63 +742,66 @@ function GameScreen({ mission, onGameEnd }) {
 
     requestAnimationFrame(loop);
 
-    return() => {
+    return () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [mission, onGameEnd]);
+  }, [difficulty, onGameEnd]);
 
   return (
-    <div className="space-y-4">
-
-      {/*mission header*/}
-      <div className="bg-slate-900/50 border border-cyan-500/50 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
+    <div className="game-screen">
+      <div className="game-header">
+        <div className="game-stats-grid">
           <div>
-            <div className="text-cyan-300 text-sm">{mission.name}</div>
-            <div className="text-2xl font-bold text-white">
-              {uiState.collected} / {uiState.goal} 
-            </div>
+            <div className="game-stat-label">Score</div>
+            <div className="game-stat-value">{uiState.collected}</div>
           </div>
-          {/*add part abt power ups*/}
-          <div className="text-right">
-            <div className="text-red-300 text-sm">Health</div>
-            <div className="text-2xl flex gap-1">
-              {Array(uiState.health).fill('❤️').map((h, i) => <span key={i}>{h}</span>)}
-              {Array(3 - uiState.health).fill('🖤').map((h, i) => <span key={i + uiState.health}>{h}</span>)}
+          <div>
+            <div className="game-stat-label">Wave {uiState.wave}</div>
+            <div className="game-stat-next">Next: {uiState.nextWaveIn}s</div>
+          </div>
+          <div>
+            <div className="game-stat-label">Enemies</div>
+            <div className="game-stat-value">{uiState.enemyCount}</div>
+          </div>
+          <div className="game-stat-right">
+            <div className="game-stat-label">Health</div>
+            <div className="game-health">
+              {Array(Math.max(0, uiState.health || 0)).fill('heart').map((h, i) => <span key={`heart-${i}`}>{h}</span>)}
+              {Array(Math.max(0, (uiState.maxHealth || 3) - (uiState.health || 0))).fill('🖤').map((h, i) => <span key={`empty-${i}`}>{h}</span>)}
             </div>
           </div>
         </div>
 
-        {/*progress bar*/}
-        <div className="w-full bg-slate-800 rounded-full h-4 overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-300"
-            style={{ width: `${uiState.progress}%` }}
-          />
-        </div>
-        <div className='text-center text-cyan-300 text-xs mt-1'>
-          {Math.round(uiState.progress)}% Complete
-        </div>
+        {uiState.isBossWave && (
+          <div className="boss-wave-indicator">
+            <span className="boss-wave-text">BOSS WAVE</span>
+          </div>
+        )}
+
+        {uiState.activePowerUp && (
+          <div className="active-powerup">
+            <span className="powerup-active-name">{uiState.activePowerUp}</span>
+            <span className="powerup-active-timer">{uiState.powerUpTimer}s</span>
+          </div>
+        )}
       </div>
 
-      {/*canvas*/}
-      <div className="relative">
+      <div className="game-canvas-container">
         <canvas
           ref={canvasRef}
           width={800}
           height={600}
-          className="w-full rounded-xl border-2 border-cyan-500/30 bg-slate-950 shadow-2xl"
+          className="game-canvas"
         />
       </div>
 
-      {/*controls*/}
-      <div className="text-center">
-        <div className="text-slate-400 text-sm">
-          Use WASD or Arrow Keys to move, collect blue fragments and avoid corruption
+      <div className="game-controls">
+        <div className="game-controls-text">
+          Use WASD or Arrow Keys
         </div>
-        <div className='text-cyan-300 text-xs mt-1'>
-          Time: {uiState.time}s
+        <div className="game-controls-info">
+          Time: {uiState.time}s • Difficulty: x{uiState.difficultyMultiplier.toFixed(1)}
         </div>
       </div>
     </div>
@@ -778,14 +809,12 @@ function GameScreen({ mission, onGameEnd }) {
 }
 
 function draw(ctx, state) {
-  //bg
   const bgGrad = ctx.createRadialGradient(400, 300, 0, 400, 300, 600);
   bgGrad.addColorStop(0, '#1e293b');
   bgGrad.addColorStop(1, '#0f172a');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, 800, 600);
 
-  //grid
   ctx.strokeStyle = 'rgba(56, 189, 248, 0.1)';
   ctx.lineWidth = 1;
   for (let x = 0; x < 800; x += 50) {
@@ -801,16 +830,14 @@ function draw(ctx, state) {
     ctx.stroke();
   }
 
-  //particles
   state.particles.forEach(p => {
-    const alpha = Math.floor(p.life*255).toString(16).padStart(2, '0');
+    const alpha = Math.floor(p.life * 255).toString(16).padStart(2, '0');
     ctx.fillStyle = p.color + alpha;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
     ctx.fill();
   });
 
-  //magnet effect radius
   if (state.activePowerUp === 'magnet') {
     ctx.strokeStyle = 'rgba(168, 85, 247, 0.3)';
     ctx.lineWidth = 2;
@@ -821,21 +848,19 @@ function draw(ctx, state) {
     ctx.setLineDash([]);
   }
 
-  //fragments
   state.fragments.forEach(frag => {
-    const pulse = Math.sin(frag.pulse) * 0.3 + 1;
-    //glow
-    const glowGrad = ctx.createRadialGradient(frag.x, frag.y, 0, frag.x, frag.y, frag.size * 3);
+    const pulse = Math.sin(frag.pulse)*0.3 + 1;
+    const glowGrad = ctx.createRadialGradient(frag.x, frag.y, 0, frag.x, frag.y, frag.size*3);
     glowGrad.addColorStop(0, frag.color + 'CC');
     glowGrad.addColorStop(1, frag.color + '00');
     ctx.fillStyle = glowGrad;
     ctx.beginPath();
-    ctx.arc(frag.x, frag.y, frag.size * 3, 0, Math.PI*2);
+    ctx.arc(frag.x, frag.y, frag.size*3, 0, Math.PI*2);
     ctx.fill();
-    //core
+    
     ctx.fillStyle = frag.color;
     ctx.beginPath();
-    ctx.arc(frag.x, frag.y, frag.size *pulse, 0, Math.PI*2);
+    ctx.arc(frag.x, frag.y, frag.size*pulse, 0, Math.PI*2);
     ctx.fill();
 
     //highlight
@@ -856,12 +881,11 @@ function draw(ctx, state) {
   //power ups
   state.powerUps.forEach(powerUp => {
     const pulse = Math.sin(powerUp.pulse)*0.4 + 1;
-    const flickerWarning = powerUp.lifetime < 3 && Math.sin(powerUp.lifetime * 10) > 0;
+    const flickerWarning = powerUp.lifetime < 3 && Math.sin(powerUp.lifetime*10) > 0;
 
     if (flickerWarning && Math.floor(powerUp.lifetime * 10) % 2 === 0) return;
 
-    //glow
-    const glowGrad = ctx.createRadialGradient(powerUp.x, powerUp.y, 0, powerUp.x, powerUp.y, powerUp.size*4);
+    const glowGrad = ctx.createRadialGradient(powerUp.x, powerUp.y, 0, powerUp.x, powerUp.y, powerUp.size * 4);
     glowGrad.addColorStop(0, powerUp.color + 'AA');
     glowGrad.addColorStop(1, powerUp.color + '00');
     ctx.fillStyle = glowGrad;
@@ -876,40 +900,65 @@ function draw(ctx, state) {
     ctx.arc(powerUp.x, powerUp.y, powerUp.size*pulse, 0, Math.PI*2);
     ctx.stroke();
 
-    //sign
+    ctx.fillStyle = powerUp.color;
+    ctx.font = 'bold 20px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(powerUp.sign, powerUp.x, powerUp.y);
+    const icons = { shield: 'shield', speed: 'sped', clear: 'bomb', magnet: 'magnet' };
+    ctx.fillText(icons[powerUp.type] || '?', powerUp.x, powerUp.y);
   });
 
   //enemies
   state.enemies.forEach(enemy => {
-    const pulse = Math.sin(enemy.pulse)*0.2 + 1;
+    const pulse = Math.sin(enemy.pulse) * 0.2 + 1;
 
-    //glow
+    const glowColor = enemy.isBoss ? '#7f1d1d' : enemy.color;
     const glowGrad = ctx.createRadialGradient(enemy.x, enemy.y, 0, enemy.x, enemy.y, enemy.size * 3);
-    glowGrad.addColorStop(0, enemy.color + '99');
-    glowGrad.addColorStop(1, enemy.color + '00');
+    glowGrad.addColorStop(0, glowColor + '99');
+    glowGrad.addColorStop(1, glowColor + '00');
     ctx.fillStyle = glowGrad;
     ctx.beginPath();
     ctx.arc(enemy.x, enemy.y, enemy.size * 3, 0, Math.PI*2);
     ctx.fill();
-    //core
+    
     ctx.fillStyle = enemy.color;
     ctx.beginPath();
     ctx.arc(enemy.x, enemy.y, enemy.size * pulse, 0, Math.PI*2);
     ctx.fill();
+    
+    //enemy, differrentiating between normal and boss
+    if (enemy.isBoss) {
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('crown', enemy.x, enemy.y - enemy.size - 10);
+    }
 
-    //spikes
-    for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI * 2 * i) / 6 + enemy.pulse;
+    if (enemy.maxHealth > 1) {
+      const barWidth = enemy.size * 2;
+      const barHeight = 4;
+      const barX = enemy.x - barWidth / 2;
+      const barY = enemy.y - enemy.size - 10;
+      
+      ctx.fillStyle = '#991b1b';
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+      
+      ctx.fillStyle = '#ef4444';
+      const healthPercent = enemy.health / enemy.maxHealth;
+      ctx.fillRect(barX, barY, barWidth*healthPercent, barHeight);
+    }
+
+    const spikeCount = enemy.isBoss ? 8 : 6;
+    for (let i = 0; i < spikeCount; i++) {
+      const angle = (Math.PI * 2 * i) / spikeCount + enemy.pulse;
       const x1 = enemy.x + Math.cos(angle) * enemy.size * 0.7;
       const y1 = enemy.y + Math.sin(angle) * enemy.size * 0.7;
       const x2 = enemy.x + Math.cos(angle) * enemy.size * 1.5;
       const y2 = enemy.y + Math.sin(angle) * enemy.size * 1.5;
 
-      ctx.strokeStyle = '#991b1b';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = enemy.isBoss ? '#7f1d1d' : '#991b1b';
+      ctx.lineWidth = enemy.isBoss ? 4 : 3;
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
@@ -1006,5 +1055,3 @@ function draw(ctx, state) {
     ctx.restore();
   });
 }
-
-
