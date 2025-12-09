@@ -825,253 +825,434 @@ function GameScreen({ difficulty, onGameEnd }) {
   );
 }
 
-function draw(ctx, state) {
-  //safety check
-  if (!ctx || !state || !state.player) return;
-  
-  const bgGrad = ctx.createRadialGradient(400, 300, 0, 400, 300, 600);
-  bgGrad.addColorStop(0, '#1e293b');
-  bgGrad.addColorStop(1, '#0f172a');
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, 800, 600);
+//drawing helpers
+function _pulse(time, speed = 6, amp = 1) {
+  return Math.sin(time * speed) * amp;
+}
+function _jitter(strength = 1) {
+  return (Math.random() - 0.5) * strength;
+}
+function _rgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
 
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.1)';
+//player (next step is to make this spin & "spit out" spikes from the corners to attack enemies)
+function drawPlayer(ctx, player, time) {
+  const blueCore = '#0ea5e9';    // bright core
+  const blueFill = '#67e8f9';    // soft fill
+  const cyanOutline = '#8be9ff'; // outline/glow
+
+  const pulse = _pulse(time, 5, 0.8);
+  const jitter = _jitter(1.2);
+
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.rotate((player.x + player.y + time * 0.2) * 0.0008); //tiny rotation for drifting
+
+  //holographic glow
+  ctx.globalCompositeOperation = 'lighter';
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, player.size * 3.2);
+  glow.addColorStop(0, _rgba(blueCore, 0.18));
+  glow.addColorStop(0.6, _rgba(blueFill, 0.06));
+  glow.addColorStop(1, _rgba('#000000', 0));
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, 0, player.size * 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  //Core shard 
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.lineJoin = 'miter';
+
+  ctx.fillStyle = blueFill;
+  ctx.strokeStyle = cyanOutline;
+  ctx.lineWidth = 1.5 + Math.max(0, pulse) * 0.6;
+
+  //three-point shard with jitter to feel corrupted
+  ctx.beginPath();
+  ctx.moveTo(0 + _jitter(0.6), -player.size * 1.45 + jitter * 0.25);
+  ctx.lineTo(player.size * 1.15 + _jitter(0.6), player.size * 0.75 + jitter * 0.4);
+  ctx.lineTo(-player.size * 1.15 + _jitter(0.6), player.size * 0.75 + _jitter(0.4));
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  //inner core accent
+  ctx.fillStyle = blueCore;
+  ctx.globalAlpha = 0.95;
+  ctx.beginPath();
+  ctx.moveTo(0, -player.size * 0.7 + _jitter(0.4));
+  ctx.lineTo(player.size * 0.55 + _jitter(0.3), player.size * 0.35 + _jitter(0.3));
+  ctx.lineTo(-player.size * 0.55 + _jitter(0.3), player.size * 0.35 + _jitter(0.3));
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  //scanline 
+  ctx.strokeStyle = _rgba(blueCore, 0.28);
   ctx.lineWidth = 1;
-  for (let x = 0; x < 800; x += 50) {
+  ctx.beginPath();
+  ctx.moveTo(-player.size * 0.9, _jitter(0.8));
+  ctx.lineTo(player.size * 0.9, _jitter(0.8));
+  ctx.stroke();
+
+  //shield rings
+  if (player.hasShield) {
+    const shieldPulse = 1 + Math.abs(_pulse(time, 4, 0.12));
+    ctx.strokeStyle = _rgba(blueCore, 0.9);
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, 600);
+    ctx.arc(0, 0, (player.size + 9) * shieldPulse, 0, Math.PI * 2);
     ctx.stroke();
-  }
-  for (let y = 0; y < 600; y += 50) {
+
+    ctx.strokeStyle = _rgba(blueFill, 0.45);
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(800, y);
+    ctx.arc(0, 0, (player.size + 14) * shieldPulse, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  state.particles.forEach(p => {
-    const alpha = Math.floor(p.life * 255).toString(16).padStart(2, '0');
-    ctx.fillStyle = p.color + alpha;
+  //invulnerability flash
+  if (player.invulnerable > 0) {
+    const alpha = 0.25 + 0.5 * Math.abs(Math.sin(time * 18));
+    ctx.strokeStyle = _rgba('#67e8f9', alpha);
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-    ctx.fill();
+    ctx.arc(0, 0, player.size + 8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+//enemy
+function drawEnemy(ctx, enemy, time) {
+  const redCore = '#be123c';
+  const redFill = '#fb7185';
+  const ember = '#ffb8c1';
+
+  const pulse = 1 + _pulse(enemy.pulse + time * 0.4, 3, 0.6);
+  const jitterX = _jitter(1.1);
+  const jitterY = _jitter(1.1);
+
+  ctx.save();
+  ctx.translate(enemy.x + _jitter(0.6), enemy.y + _jitter(0.6));
+  ctx.rotate((enemy.x - enemy.y) * 0.0009 + _pulse(time, 8, 0.02));
+
+  //subtle red glow
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, enemy.size * 3.2);
+  g.addColorStop(0, _rgba(redFill, 0.14));
+  g.addColorStop(0.6, _rgba(redCore, 0.06));
+  g.addColorStop(1, _rgba('#000000', 0));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, enemy.size * 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  //shard body 
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = redFill;
+  ctx.strokeStyle = redCore;
+  ctx.lineWidth = enemy.isBoss ? 3 : 1.8;
+
+  ctx.beginPath();
+  ctx.moveTo(0, -enemy.size - pulse * 0.8 + jitterY);
+  ctx.lineTo(enemy.size + jitterX, 0);
+  ctx.lineTo(0, enemy.size + pulse * 0.8 - jitterY);
+  ctx.lineTo(-enemy.size - jitterX, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  //small crack lines 
+  ctx.strokeStyle = _rgba('#000000', 0.18);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-enemy.size * 0.25, -enemy.size * 0.2);
+  ctx.lineTo(enemy.size * 0.35, enemy.size * 0.45);
+  ctx.stroke();
+
+  //boss accent
+  if (enemy.isBoss) {
+    ctx.fillStyle = ember;
+    ctx.font = `${12 + Math.min(8, Math.floor(enemy.size/3))}px ParticleFont, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('☥', 0, -enemy.size - 10);
+  }
+
+  ctx.restore();
+}
+
+function draw(ctx, state) {
+  if (!ctx || !state || !state.player) return;
+
+  const time = state.time || 0;
+  const W = 800, H = 600;
+
+  //background: radial haze + faint nebula
+  const bgGrad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H));
+  bgGrad.addColorStop(0, _rgba('#071026', 1)); // deep navy center
+  bgGrad.addColorStop(0.5, _rgba('#001428', 0.9));
+  bgGrad.addColorStop(1, _rgba('#000005', 1));
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  //flickering holographic haze (blue-ish)
+  if (Math.random() < 0.06) {
+    ctx.globalAlpha = 0.02 + Math.random() * 0.04;
+    ctx.fillStyle = _rgba('#0ea5e9', 1);
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+
+  //grid/scanlines
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += 50) {
+    ctx.beginPath();
+    ctx.moveTo(x + (_jitter(0.2)), 0);
+    ctx.lineTo(x + (_jitter(0.2)), H);
+    ctx.strokeStyle = Math.random() < 0.06 ? _rgba('#be123c', 0.08) : _rgba('#67e8f9', 0.06);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= H; y += 50) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + (_jitter(0.2)));
+    ctx.lineTo(W, y + (_jitter(0.2)));
+    ctx.strokeStyle = Math.random() < 0.06 ? _rgba('#fb7185', 0.08) : _rgba('#67e8f9', 0.06);
+    ctx.stroke();
+  }
+
+  //subtle CRT horizontal scanlines overlay
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.fillStyle = _rgba('#000000', 0.03);
+  for (let y = 0; y < H; y += 2) {
+    if (y % 6 === 0) continue; // make it irregular
+    ctx.fillRect(0, y + Math.sin(time * 12 + y * 0.02) * 0.5, W, 1);
+  }
+  ctx.restore();
+
+  //particles 
+  state.particles.forEach(p => {
+    const alpha = Math.max(0, Math.min(1, p.life));
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    //make shards (small rotated rects)
+    ctx.translate(p.x + _jitter(0.4), p.y + _jitter(0.4));
+    ctx.rotate(p.vx * 0.05 + _jitter(0.6));
+
+    const w = Math.max(1, p.size * (0.6 + Math.random() * 0.8));
+    const h = Math.max(1, p.size * (0.8 + Math.random() * 1.2));
+
+    ctx.fillStyle = _rgba(p.color || '#67e8f9', alpha * 0.95);
+    ctx.fillRect(-w/2, -h/2, w, h);
+
+    //streak tail
+    ctx.strokeStyle = _rgba(p.color || '#67e8f9', alpha * 0.5);
+    ctx.lineWidth = Math.max(1, w * 0.12);
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.6, 0);
+    ctx.lineTo(-w * 1.8 - (p.vx || 0), 0);
+    ctx.stroke();
+
+    ctx.restore();
   });
 
+  //magnet ring
   if (state.activePowerUp === 'magnet') {
-    ctx.strokeStyle = 'rgba(168, 85, 247, 0.3)';
+    ctx.save();
+    ctx.setLineDash([6,6]);
+    ctx.strokeStyle = _rgba('#67e8f9', 0.22);
     ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
     ctx.beginPath();
-    ctx.arc(state.player.x, state.player.y, 200, 0, Math.PI*2);
+    ctx.arc(state.player.x, state.player.y, 200, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.restore();
   }
 
+  //fragments
   state.fragments.forEach(frag => {
-    const pulse = Math.sin(frag.pulse)*0.3 + 1;
-    const glowGrad = ctx.createRadialGradient(frag.x, frag.y, 0, frag.x, frag.y, frag.size*3);
-    glowGrad.addColorStop(0, frag.color + 'CC');
-    glowGrad.addColorStop(1, frag.color + '00');
-    ctx.fillStyle = glowGrad;
+    const fragPulse = 1 + Math.sin(frag.pulse + time * 6) * 0.18;
+    const fx = frag.x + _jitter(0.4);
+    const fy = frag.y + _jitter(0.4);
+
+    //outer halo
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, frag.size * 3.2);
+    g.addColorStop(0, _rgba('#0ea5e9', 0.12));
+    g.addColorStop(0.6, _rgba('#67e8f9', 0.06));
+    g.addColorStop(1, _rgba('#000000', 0));
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(frag.x, frag.y, frag.size*3, 0, Math.PI*2);
+    ctx.arc(fx, fy, frag.size * 3.2, 0, Math.PI * 2);
     ctx.fill();
-    
-    ctx.fillStyle = frag.color;
+
+    //shard body
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = frag.color || '#67e8f9';
+    ctx.strokeStyle = _rgba('#0ea5e9', 0.95);
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(frag.x, frag.y, frag.size*pulse, 0, Math.PI*2);
+    ctx.moveTo(fx, fy - frag.size * fragPulse);
+    ctx.lineTo(fx + frag.size * 0.9, fy);
+    ctx.lineTo(fx, fy + frag.size * fragPulse);
+    ctx.lineTo(fx - frag.size * 0.9, fy);
+    ctx.closePath();
     ctx.fill();
+    ctx.stroke();
 
     //highlight
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillStyle = _rgba('#ffffff', 0.85);
     ctx.beginPath();
-    ctx.arc(frag.x - frag.size*0.3, frag.y - frag.size*0.3, frag.size*0.3, 0, Math.PI*2);
+    ctx.arc(fx - frag.size * 0.25, fy - frag.size * 0.25, frag.size * 0.25, 0, Math.PI*2);
     ctx.fill();
 
-    //value indicator for higher value frags
+    //value text
     if (frag.value > 1) {
-      ctx.fillStyle = 'white';
-      ctx.font = 'bold 10px monospace';
+      ctx.fillStyle = '#e6f9ff';
+      ctx.font = 'bold 11px ParticleFont, monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`x${frag.value}`, frag.x, frag.y + frag.size + 12);
+      ctx.fillText(`x${frag.value}`, fx, fy + frag.size + 12);
     }
   });
 
-  //power ups
+  //powerups
   state.powerUps.forEach(powerUp => {
-    const pulse = Math.sin(powerUp.pulse)*0.4 + 1;
-    const flickerWarning = powerUp.lifetime < 3 && Math.sin(powerUp.lifetime*10) > 0;
+    const pp = 1 + Math.sin(powerUp.pulse + time * 6) * 0.12;
+    const px = powerUp.x, py = powerUp.y;
 
-    if (flickerWarning && Math.floor(powerUp.lifetime * 10) % 2 === 0) return;
-
-    const glowGrad = ctx.createRadialGradient(powerUp.x, powerUp.y, 0, powerUp.x, powerUp.y, powerUp.size * 4);
-    glowGrad.addColorStop(0, powerUp.color + 'AA');
-    glowGrad.addColorStop(1, powerUp.color + '00');
-    ctx.fillStyle = glowGrad;
+    ctx.globalCompositeOperation = 'lighter';
+    const grad = ctx.createRadialGradient(px, py, 0, px, py, powerUp.size * 4);
+    grad.addColorStop(0, _rgba(powerUp.color, 0.22));
+    grad.addColorStop(0.6, _rgba(powerUp.color, 0.1));
+    grad.addColorStop(1, _rgba('#000000', 0));
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(powerUp.x, powerUp.y, powerUp.size*4, 0, Math.PI*2);
+    ctx.arc(px, py, powerUp.size * 4, 0, Math.PI*2);
     ctx.fill();
 
-    //ring
-    ctx.strokeStyle = powerUp.color;
-    ctx.lineWidth = 3;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = _rgba(powerUp.color, 0.95);
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(powerUp.x, powerUp.y, powerUp.size*pulse, 0, Math.PI*2);
+    ctx.arc(px, py, powerUp.size * pp, 0, Math.PI*2);
     ctx.stroke();
 
     ctx.fillStyle = powerUp.color;
-    ctx.font = 'bold 20px monospace';
+    ctx.font = `bold ${16 + Math.floor(powerUp.size/2)}px ParticleFont, monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const icons = { shield: 'shield', speed: 'sped', clear: 'bomb', magnet: 'magnet' };
-    ctx.fillText(icons[powerUp.type] || '?', powerUp.x, powerUp.y);
+    const icons = { shield: '⛨', speed: '⚡', clear: '✖', magnet: '⤓' };
+    ctx.fillText(icons[powerUp.type] || '?', px, py);
   });
 
   //enemies
   state.enemies.forEach(enemy => {
-    const pulse = Math.sin(enemy.pulse) * 0.2 + 1;
+    //soft halo before the body
+    const glowColor = enemy.isBoss ? '#be123c' : (enemy.color || '#fb7185');
+    ctx.globalCompositeOperation = 'lighter';
+    const eg = ctx.createRadialGradient(enemy.x, enemy.y, 0, enemy.x, enemy.y, enemy.size * 3.2);
+    eg.addColorStop(0, _rgba(glowColor, 0.16));
+    eg.addColorStop(0.6, _rgba(glowColor, 0.06));
+    eg.addColorStop(1, _rgba('#000000', 0));
+    ctx.fillStyle = eg;
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, enemy.size * 3.2, 0, Math.PI*2);
+    ctx.fill();
 
-    const glowColor = enemy.isBoss ? '#7f1d1d' : enemy.color;
-    const glowGrad = ctx.createRadialGradient(enemy.x, enemy.y, 0, enemy.x, enemy.y, enemy.size * 3);
-    glowGrad.addColorStop(0, glowColor + '99');
-    glowGrad.addColorStop(1, glowColor + '00');
-    ctx.fillStyle = glowGrad;
-    ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, enemy.size * 3, 0, Math.PI*2);
-    ctx.fill();
-    
-    ctx.fillStyle = enemy.color;
-    ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, enemy.size * pulse, 0, Math.PI*2);
-    ctx.fill();
-    
-    //enemy, differrentiating between normal and boss
+    drawEnemy(ctx, enemy, time);
+
+    //boss marker & health
     if (enemy.isBoss) {
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = 'bold 16px monospace';
+      ctx.fillStyle = '#ffd5d9';
+      ctx.font = 'bold 14px ParticleFont, monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('crown', enemy.x, enemy.y - enemy.size - 10);
+      ctx.fillText('BOSS', enemy.x, enemy.y - enemy.size - 14);
     }
 
     if (enemy.maxHealth > 1) {
       const barWidth = enemy.size * 2;
-      const barHeight = 4;
+      const barHeight = 5;
       const barX = enemy.x - barWidth / 2;
-      const barY = enemy.y - enemy.size - 10;
-      
-      ctx.fillStyle = '#991b1b';
+      const barY = enemy.y - enemy.size - 8;
+      ctx.fillStyle = _rgba('#2b0206', 0.9);
       ctx.fillRect(barX, barY, barWidth, barHeight);
-      
-      ctx.fillStyle = '#ef4444';
-      const healthPercent = enemy.health / enemy.maxHealth;
-      ctx.fillRect(barX, barY, barWidth*healthPercent, barHeight);
+
+      ctx.fillStyle = _rgba('#fb7185', 0.95);
+      const healthPercent = Math.max(0, Math.min(1, enemy.health / enemy.maxHealth));
+      ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
     }
 
+    //jagged spikes
     const spikeCount = enemy.isBoss ? 8 : 6;
+    ctx.strokeStyle = _rgba('#000000', 0.25);
+    ctx.lineWidth = enemy.isBoss ? 3 : 2;
     for (let i = 0; i < spikeCount; i++) {
-      const angle = (Math.PI * 2 * i) / spikeCount + enemy.pulse;
+      const angle = (Math.PI * 2 * i) / spikeCount + enemy.pulse * 0.5;
       const x1 = enemy.x + Math.cos(angle) * enemy.size * 0.7;
       const y1 = enemy.y + Math.sin(angle) * enemy.size * 0.7;
       const x2 = enemy.x + Math.cos(angle) * enemy.size * 1.5;
       const y2 = enemy.y + Math.sin(angle) * enemy.size * 1.5;
-
-      ctx.strokeStyle = enemy.isBoss ? '#7f1d1d' : '#991b1b';
-      ctx.lineWidth = enemy.isBoss ? 4 : 3;
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
       ctx.stroke();
     }
   });
-  //player
-  const p = state.player;
-  //shield effect
-  if (p.hasshield) {
-    const shieldPulse = Math.sin(state.time * 3)*0.2 + 1;
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, (p.size + 10) * shieldPulse, 0, Math.PI*2);
-    ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, (p.size + 15) * shieldPulse, 0, Math.PI*2);
-    ctx.stroke();
-  }
- 
-  //invulnerability flash
-  if (p.invulnerable > 0) {
-    const alpha = Math.sin(state.time * 20) * 0.5 + 0.5;
-    ctx.strokeStyle = `rgba(96, 165, 250, ${alpha})`;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size + 8, 0, Math.PI*2);
-    ctx.stroke();
-  }
-  
-  //speed boost trail
+  //player (draw last so it's on top)
+  drawPlayer(ctx, state.player, time);
+
+  //speed trail for player
   if (state.activePowerUp === 'speed') {
-    ctx.fillStyle = 'rgba(234, 179, 8, 0.3)';
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = _rgba('#0ea5e9', 0.18);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size*2, 0, Math.PI*2);
+    ctx.ellipse(state.player.x - 6, state.player.y, state.player.size * 1.8, state.player.size * 0.9, 0, 0, Math.PI*2);
     ctx.fill();
+    ctx.restore();
   }
 
-  //player glow
-  const playerGlow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2.5);
-  playerGlow.addColorStop(0, 'rgba(96, 165, 250, 0.8)');
-  playerGlow.addColorStop(1, 'rgba(96, 165, 250, 0)');
-  ctx.fillStyle = playerGlow;
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, p.size*2, 0, Math.PI*2);
-  ctx.fill();
-
-  //player body
-  ctx.fillStyle = '#e0f2fe';
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-  ctx.fill();
-
-  ctx.fillStyle = '#38bdf8';
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, p.size * 0.6, 0, Math.PI*2);
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-  ctx.beginPath();
-  ctx.arc(p.x - 6, p.y - 6, 5, 0, Math.PI*2);
-  ctx.fill();
-
-  //combo display
+  //combo display (holographic font)
   if (state.combo > 3) {
     ctx.save();
-    ctx.font = 'bold 32px monospace';
-    ctx.fillStyle = '#fbbf24';
-    ctx.strokeStyle = '#78350f';
-    ctx.lineWidth = 4;
+    ctx.font = 'bold 34px UIFont, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const comboText = `${state.combo}x COMBO!`;
-    ctx.strokeText(comboText, 400, 80);
-    ctx.fillText(comboText, 400, 80);
+    //soft stroke then light fill
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = _rgba('#001428', 0.85);
+    ctx.strokeText(comboText, W/2, 78);
+    ctx.fillStyle = '#e6fbff';
+    ctx.fillText(comboText, W/2, 78);
     ctx.restore();
   }
 
   //floating texts
   state.floatingTexts.forEach(text => {
     ctx.save();
-    const alpha = text.life;
-    ctx.font = 'bold 16px monospace';
-    ctx.fillStyle = text.color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
-    ctx.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
-    ctx.lineWidth = 3;
+    const alpha = Math.max(0, Math.min(1, text.life));
+    ctx.font = 'bold 16px ParticleFont, monospace';
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    //stroke for legibility
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = _rgba('#001428', alpha * 0.9);
     ctx.strokeText(text.text, text.x, text.y);
+    ctx.fillStyle = _rgba(text.color || '#e6fbff', alpha);
     ctx.fillText(text.text, text.x, text.y);
     ctx.restore();
   });
+
+  ctx.globalCompositeOperation = 'source-over';
 }
