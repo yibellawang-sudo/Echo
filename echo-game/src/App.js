@@ -80,6 +80,7 @@ export default function App() {
             <GameScreen
               difficulty={difficulty}
               onGameEnd={onGameEnd}
+              stats={stats}
             />
           )}
         </div>
@@ -110,7 +111,9 @@ function AwakeningScreen({ onComplete }) {
 
   return (
     <div className="awakening-screen" style={{ opacity }}>
-      <div className="awakening-icon">eye</div>
+      <div className="awakening-icon">
+        <img src="/Art/eye.png" alt="Eye" style={{ width: '200px', height: '200px' }} />
+      </div>
       <div className="awakening-text">{text}</div>
       <div className="awakening-description">
         You are Subject 77, a Memory Extractor in the Panopticon. Your mission: survive the waves of corruption while collecting fragments of humanity's lost memories. How long can you last?
@@ -248,9 +251,10 @@ function MenuScreen({ stats, lastRunResult, onStartGame }) {
   );
 }
 
-function GameScreen({ difficulty, onGameEnd }) {
+function GameScreen({ difficulty, onGameEnd, stats }) {
   const canvasRef = useRef(null);
-  const highScoreRef = useRef(0);
+  const iconsRef = useRef(null);
+  const heartIconRef = useRef(null);
   const [uiState, setUiState] = useState({
     collected: 0,
     health: 3,
@@ -264,6 +268,28 @@ function GameScreen({ difficulty, onGameEnd }) {
     nextWaveIn: 30,
     isBossWave: false
   });
+
+  // Load images at component mount
+  useEffect(() => {
+    const icons = {
+      shield: new Image(),
+      magnet: new Image(),
+      speed: new Image(),
+      clear: new Image(),
+      heart: new Image(),
+      eye: new Image()
+    };
+
+    icons.shield.src = '/Art/shield.png';
+    icons.magnet.src = '/Art/magnet.png';
+    icons.speed.src = '/Art/speed.png';
+    icons.clear.src = '/Art/clear.png';
+    icons.heart.src = '/Art/heart.png';
+    icons.eye.src = '/Art/eye.png';
+
+    iconsRef.current = icons;
+    heartIconRef.current = icons.heart;
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -650,10 +676,7 @@ function GameScreen({ difficulty, onGameEnd }) {
                   window.cancelAnimationFrame(animationFrameId);
                 }
                 
-                const isNewHighScore = state.collected > highScoreRef.current;
-                if (isNewHighScore) {
-                  highScoreRef.current = state.collected;
-                }
+                const isNewHighScore = state.collected > stats.highScore;
                 
                 onGameEnd({
                   fragmentsCollected: state.collected,
@@ -763,7 +786,7 @@ function GameScreen({ difficulty, onGameEnd }) {
         isBossWave: state.isBossWave || false
       });
 
-      draw(ctx, state);
+      draw(ctx, state, iconsRef.current);
       
       if (!state.gameOver) {
         animationFrameId = requestAnimationFrame(loop);
@@ -779,7 +802,7 @@ function GameScreen({ difficulty, onGameEnd }) {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [difficulty, onGameEnd]);
+  }, [difficulty, onGameEnd, stats.highScore]);
 
   return (
     <div className="game-screen">
@@ -800,8 +823,21 @@ function GameScreen({ difficulty, onGameEnd }) {
           <div className="game-stat-right">
             <div className="game-stat-label">Health</div>
             <div className="game-health">
-              {Array(Math.max(0, uiState.health || 0)).fill('❤️').map((h, i) => <span key={`heart-${i}`}>{h}</span>)}
-              {Array(Math.max(0, (uiState.maxHealth || 3) - (uiState.health || 0))).fill('🖤').map((h, i) => <span key={`empty-${i}`}>{h}</span>)}
+              {heartIconRef.current ? (
+                <>
+                  {Array(Math.max(0, uiState.health || 0)).fill(null).map((_, i) => (
+                    <img key={`heart-${i}`} src="/Art/heart.png" alt="♥" style={{ width: '20px', height: '20px', marginRight: '2px' }} />
+                  ))}
+                  {Array(Math.max(0, (uiState.maxHealth || 3) - (uiState.health || 0))).fill(null).map((_, i) => (
+                    <img key={`empty-${i}`} src="/Art/heart.png" alt="♡" style={{ width: '20px', height: '20px', marginRight: '2px', opacity: 0.3, filter: 'grayscale(100%)' }} />
+                  ))}
+                </>
+              ) : (
+                <>
+                  {Array(Math.max(0, uiState.health || 0)).fill('❤️').map((h, i) => <span key={`heart-${i}`}>{h}</span>)}
+                  {Array(Math.max(0, (uiState.maxHealth || 3) - (uiState.health || 0))).fill('🖤').map((h, i) => <span key={`empty-${i}`}>{h}</span>)}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1003,7 +1039,7 @@ function drawEnemy(ctx, enemy, time) {
   ctx.restore();
 }
 
-function draw(ctx, state) {
+function draw(ctx, state, icons) {
   if (!ctx || !state || !state.player) return;
 
   const time = state.time || 0;
@@ -1159,13 +1195,19 @@ function draw(ctx, state) {
     ctx.arc(px, py, powerUp.size * pp, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Draw power-up icons
-    ctx.fillStyle = powerUp.color;
-    ctx.font = `bold ${14}px monospace`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const icons = { shield: 'shield.png', speed: 'speed.png', clear: 'clear.png', magnet: 'magnet.png' };
-    ctx.fillText(icons[powerUp.type] || '?', px, py);
+    // Draw custom icon image
+    if (icons && icons[powerUp.type]) {
+      const iconSize = powerUp.size * 1.5;
+      ctx.drawImage(icons[powerUp.type], px - iconSize / 2, py - iconSize / 2, iconSize, iconSize);
+    } else {
+      // Fallback to text if image not loaded
+      ctx.fillStyle = powerUp.color;
+      ctx.font = `bold ${14}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const iconText = { shield: 'S', speed: 'V', clear: 'C', magnet: 'M' };
+      ctx.fillText(iconText[powerUp.type] || '?', px, py);
+    }
   });
 
   // Spike indicator
