@@ -1,64 +1,10 @@
-/*
-world lore:
--name: Panopticon
--backstory: after the collapse of 3042, humanity's consciousness was digitalized into "Echos", 
-vast repositries of our collective memory -- science, art, history, love, fear...
-These Echos drift mindlessly through the Panopticon, a digital purgatory
-You are Subject 77, a "Memory Extractor" directed by the Overseer, an AI model left behind programmed
-to collect the fragments of human memories left behind to prevent total data decay
-At the same time, however, you start realizing that you are decaying yourself as well
-Realizing that you're conciousness is falling apart and that you've already lost parts of your memory,
-you begin desperately buiding a "home" out of stolen memories to anchor your own existence
-Thus, each collected (somewhat) hollistic memory fragment can be installed into your home base
-These memory types include:
-- Art (Beauty/morale), used to install cosmetic upgrades or reduce degradation rate
-- Science, used to unlock upgrades and better tech
-- History, these contain knowledge, helping you piece together what really happened (the subject doesn't
-know about the collapse initially, and is immediately ushered to work collecting echos)
-They also reveal shortcuts, map data or hidden caches
-- Emotion, used to stabilize, increase max health and slow the entropy taking place
-The user must build defenses and stabilizers or they will be either erased or lose conciousness
-Their base is periodically attacked by Sentinels, mindless beings looking to consume any shard of remainging order
-You try desperately to contact the Overseer to warn them of the incoming attack, believing Sentinels are antagonistic AI.
- PLOT TWIST! The sentinels are actually what used to be the humans, and the Overseer actually encourages their downward spiral
-Story Arc:
-- Early game: Lost contact with the Overseer but follows their instructions, just surviving
-- Mid game: Building elaborate defenses, hoarding memories
-- Late game: Revelation - by preserving these memories, you're becoming more human
-- End game: Choice - Submit to erasure, or rebel using your accumulated humanity?
-
-Resource Types
-
-Raw Fragments (from extraction runs) - base currency
-Specialized Memories (Each shard is a few sentences):
-- Science Shards
-- Art Shards
-- History Shards
-- Emotion Shards
-
-Rare Artifacts: Special memories with unique properties
-
-Siege Mechanics: Between runs, Sentinels attack in waves, and your defenses auto-fire
-If they breach your Core, you lose stored resources. Higher-level defenses = safer storage
-
-*/
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Zap, Trash2, Magnet, Trophy, TrendingUp } from 'lucide-react';
 import './App.css';
 
-const STORY_CHAPTERS = [
-  {
-    title: "SYSTEM REBOOT",
-    text: "Welcome, Subject 77. I am the Overseer. You have been activated to perform Memory Extraction Protocol. Your mission is simple: survive and collect. There is no end, only progression.",
-    instruction: "Enter the Maze. Collect fragments. Survive as long as you can.",
-  }
-];
-
 export default function App() {
   const [screen, setScreen] = useState('awakening');
   
-  //stats
   const [stats, setStats] = useState({
     totalFragments: 0,
     highScore: 0,
@@ -98,7 +44,6 @@ export default function App() {
     <div className="app-container">
       <div className="app-wrapper">
         <div className="app-card">
-          {/* Header */}
           <div className="app-header">
             <h1 className="app-title">Echo</h1>
             {screen !== 'awakening' && (
@@ -119,12 +64,10 @@ export default function App() {
             )}
           </div>
 
-          {/* Awakening Screen */}
           {screen === 'awakening' && (
             <AwakeningScreen onComplete={handleAwakeningComplete} />
           )}
 
-          {/* Main Menu */}
           {screen === "menu" && (
             <MenuScreen
               stats={stats}
@@ -133,7 +76,6 @@ export default function App() {
             />
           )}
 
-          {/* Game */}
           {screen === 'game' && (
             <GameScreen
               difficulty={difficulty}
@@ -168,7 +110,7 @@ function AwakeningScreen({ onComplete }) {
 
   return (
     <div className="awakening-screen" style={{ opacity }}>
-      <div className="awakening-icon">Eye</div>
+      <div className="awakening-icon">eye</div>
       <div className="awakening-text">{text}</div>
       <div className="awakening-description">
         You are Subject 77, a Memory Extractor in the Panopticon. Your mission: survive the waves of corruption while collecting fragments of humanity's lost memories. How long can you last?
@@ -308,6 +250,7 @@ function MenuScreen({ stats, lastRunResult, onStartGame }) {
 
 function GameScreen({ difficulty, onGameEnd }) {
   const canvasRef = useRef(null);
+  const highScoreRef = useRef(0);
   const [uiState, setUiState] = useState({
     collected: 0,
     health: 3,
@@ -324,9 +267,10 @@ function GameScreen({ difficulty, onGameEnd }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    
     const ctx = canvas.getContext('2d');
 
-    //difficulty settings
     const difficultySettings = {
       easy: { healthMod: 5, speedMod: 0.7, spawnMod: 1.5, scoreMultiplier: 0.5 },
       normal: { healthMod: 3, speedMod: 1.0, spawnMod: 1.0, scoreMultiplier: 1.0 },
@@ -361,6 +305,9 @@ function GameScreen({ difficulty, onGameEnd }) {
       powerUps: [],
       floatingTexts: [],
       collected: 0,
+      fragmentsForAttack: 0,
+      spikes: [],
+      spikeCooldown: 0,
       enemiesDestroyed: 0,
       time: 0,
       wave: 1,
@@ -541,7 +488,6 @@ function GameScreen({ difficulty, onGameEnd }) {
         state.activePowerUp = null;
       }
 
-      //player movement
       const p = state.player;
       let dx = 0;
       let dy = 0;
@@ -583,6 +529,7 @@ function GameScreen({ difficulty, onGameEnd }) {
           state.collected += scoreValue;
           state.combo++;
           state.comboTimer = 3;
+          state.fragmentsForAttack += scoreValue;
 
           createParticles(frag.x, frag.y, 12, frag.color);
           if (frag.value > 1) {
@@ -594,6 +541,35 @@ function GameScreen({ difficulty, onGameEnd }) {
           state.fragments = state.fragments.filter(f => f !== frag);
         }
       });
+
+      state.spikeCooldown = Math.max(0, state.spikeCooldown - dt);
+      if (state.keys[' '] && state.spikes.length < 4 && state.spikeCooldown === 0) {
+        if (state.fragmentsForAttack >= 10) {
+          state.fragmentsForAttack -= 10;
+          state.spikeCooldown = 0.5;
+
+          const dirs = [
+            { dx: 0, dy: -1 },
+            { dx: -0.7, dy: 1},
+            { dx: 0.7, dy: 1}
+          ];
+
+          dirs.forEach(d => {
+            state.spikes.push({
+              x: p.x,
+              y: p.y,
+              vx: d.dx * 8,
+              vy: d.dy * 8,
+              size: 12,
+              life: 1,
+              opacity: 1,
+              maxLife: 1
+            });
+          });
+
+          addFloatingText(p.x, p.y - 40, "SPIKES!", "#60a5fa");
+        }
+      }
 
       state.powerUps.forEach(powerUp => {
         powerUp.pulse += dt * 4;
@@ -670,12 +646,13 @@ function GameScreen({ difficulty, onGameEnd }) {
               if (p.health <= 0) {
                 state.gameOver = true;
                 
-                //cancel animation frame
-                window.cancelAnimationFrame(loop);
+                if (animationFrameId) {
+                  window.cancelAnimationFrame(animationFrameId);
+                }
                 
-                const isNewHighScore = state.collected > (parseInt(localStorage.getItem('highScore') || '0'));
+                const isNewHighScore = state.collected > highScoreRef.current;
                 if (isNewHighScore) {
-                  localStorage.setItem('highScore', state.collected.toString());
+                  highScoreRef.current = state.collected;
                 }
                 
                 onGameEnd({
@@ -709,7 +686,7 @@ function GameScreen({ difficulty, onGameEnd }) {
       state.floatingTexts = state.floatingTexts.filter(t => t.life > 0);
 
       state.spawnTimer += dt;
-      const fragmentSpawnRate = Math.max(1, 2 - state.wave*0.05);
+      const fragmentSpawnRate = Math.max(1, 2 - state.wave * 0.05);
       const maxFragments = 20 + Math.floor(state.wave / 2);
       if (state.spawnTimer > fragmentSpawnRate && state.fragments.length < maxFragments) {
         state.spawnTimer = 0;
@@ -717,10 +694,10 @@ function GameScreen({ difficulty, onGameEnd }) {
       }
 
       state.enemySpawnTimer += dt;
-      const enemySpawnRate = Math.max(0.8, 2.5 - state.wave*0.08) * settings.spawnMod;
+      const enemySpawnRate = Math.max(0.8, 2.5 - state.wave * 0.08) * settings.spawnMod;
       if (state.enemySpawnTimer > enemySpawnRate) {
         state.enemySpawnTimer = 0;
-        const maxEnemies = 10 + state.wave*2;
+        const maxEnemies = 10 + state.wave * 2;
         if (state.enemies.length < maxEnemies) {
           spawnEnemy();
         }
@@ -732,7 +709,46 @@ function GameScreen({ difficulty, onGameEnd }) {
         spawnPowerUp();
       }
 
-      //update UI
+      if (state.spikes.length > 0) {
+        const survivors = [];
+        for (let i = 0; i < state.spikes.length; i++) {
+          const spike = state.spikes[i];
+
+          spike.x += spike.vx;
+          spike.y += spike.vy;
+          spike.life -= dt * 1.2;
+          spike.opacity = Math.max(0, spike.life / spike.maxLife);
+          
+          if (spike.life <= 0 ||
+              spike.x < -40 || spike.x > 840 ||
+              spike.y < -40 || spike.y > 640) {
+            continue;
+          }
+          
+          let hit = false;
+          for (let j = 0; j < state.enemies.length; j++) {
+            const enemy = state.enemies[j];
+            const d = Math.hypot(spike.x - enemy.x, spike.y - enemy.y);
+            if (d < enemy.size + (spike.size || 8)) {
+              enemy.health -= 1;
+              createParticles(enemy.x, enemy.y, 10, "#60a5fa");
+              if (enemy.health <= 0) {
+                state.enemiesDestroyed++;
+                createParticles(enemy.x, enemy.y, 20, "#3b82f6");
+                state.enemies.splice(j, 1);
+                j--;
+              }
+              hit = true;
+              break;
+            }
+          }
+          if (!hit) {
+            survivors.push(spike);
+          }
+        }
+        state.spikes = survivors;
+      }
+
       setUiState({
         collected: Math.max(0, state.collected) || 0,
         health: Math.max(0, Math.min(state.player.maxHealth, state.player.health)) || 0,
@@ -815,7 +831,7 @@ function GameScreen({ difficulty, onGameEnd }) {
 
       <div className="game-controls">
         <div className="game-controls-text">
-          Use WASD or Arrow Keys • Collect fragments • Avoid enemies • Survive!
+          Use WASD or Arrow Keys • SPACE to shoot spikes (costs 10) • Collect fragments • Avoid enemies • Survive!
         </div>
         <div className="game-controls-info">
           Time: {uiState.time}s • Difficulty: x{uiState.difficultyMultiplier.toFixed(1)}
@@ -825,34 +841,35 @@ function GameScreen({ difficulty, onGameEnd }) {
   );
 }
 
-//drawing helpers
+// Drawing helper functions
 function _pulse(time, speed = 6, amp = 1) {
   return Math.sin(time * speed) * amp;
 }
+
 function _jitter(strength = 1) {
   return (Math.random() - 0.5) * strength;
 }
+
 function _rgba(hex, a) {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${a})`;
 }
 
-//player (next step is to make this spin & "spit out" spikes from the corners to attack enemies)
 function drawPlayer(ctx, player, time) {
-  const blueCore = '#0ea5e9';    // bright core
-  const blueFill = '#67e8f9';    // soft fill
-  const cyanOutline = '#8be9ff'; // outline/glow
+  const blueCore = '#0ea5e9';
+  const blueFill = '#67e8f9';
+  const cyanOutline = '#8be9ff';
 
   const pulse = _pulse(time, 5, 0.8);
   const jitter = _jitter(1.2);
 
   ctx.save();
   ctx.translate(player.x, player.y);
-  ctx.rotate((player.x + player.y + time * 0.2) * 0.0008); //tiny rotation for drifting
+  ctx.rotate((player.x + player.y + time * 0.2) * 0.0008);
 
-  //holographic glow
+  // Holographic glow
   ctx.globalCompositeOperation = 'lighter';
   const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, player.size * 3.2);
   glow.addColorStop(0, _rgba(blueCore, 0.18));
@@ -863,7 +880,7 @@ function drawPlayer(ctx, player, time) {
   ctx.arc(0, 0, player.size * 3.2, 0, Math.PI * 2);
   ctx.fill();
 
-  //Core shard 
+  // Core shard
   ctx.globalCompositeOperation = 'source-over';
   ctx.lineJoin = 'miter';
 
@@ -871,7 +888,6 @@ function drawPlayer(ctx, player, time) {
   ctx.strokeStyle = cyanOutline;
   ctx.lineWidth = 1.5 + Math.max(0, pulse) * 0.6;
 
-  //three-point shard with jitter to feel corrupted
   ctx.beginPath();
   ctx.moveTo(0 + _jitter(0.6), -player.size * 1.45 + jitter * 0.25);
   ctx.lineTo(player.size * 1.15 + _jitter(0.6), player.size * 0.75 + jitter * 0.4);
@@ -880,7 +896,7 @@ function drawPlayer(ctx, player, time) {
   ctx.fill();
   ctx.stroke();
 
-  //inner core accent
+  // Inner core accent
   ctx.fillStyle = blueCore;
   ctx.globalAlpha = 0.95;
   ctx.beginPath();
@@ -891,7 +907,7 @@ function drawPlayer(ctx, player, time) {
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  //scanline 
+  // Scanline
   ctx.strokeStyle = _rgba(blueCore, 0.28);
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -899,7 +915,7 @@ function drawPlayer(ctx, player, time) {
   ctx.lineTo(player.size * 0.9, _jitter(0.8));
   ctx.stroke();
 
-  //shield rings
+  // Shield rings
   if (player.hasShield) {
     const shieldPulse = 1 + Math.abs(_pulse(time, 4, 0.12));
     ctx.strokeStyle = _rgba(blueCore, 0.9);
@@ -915,7 +931,7 @@ function drawPlayer(ctx, player, time) {
     ctx.stroke();
   }
 
-  //invulnerability flash
+  // Invulnerability flash
   if (player.invulnerable > 0) {
     const alpha = 0.25 + 0.5 * Math.abs(Math.sin(time * 18));
     ctx.strokeStyle = _rgba('#67e8f9', alpha);
@@ -928,7 +944,6 @@ function drawPlayer(ctx, player, time) {
   ctx.restore();
 }
 
-//enemy
 function drawEnemy(ctx, enemy, time) {
   const redCore = '#be123c';
   const redFill = '#fb7185';
@@ -942,7 +957,7 @@ function drawEnemy(ctx, enemy, time) {
   ctx.translate(enemy.x + _jitter(0.6), enemy.y + _jitter(0.6));
   ctx.rotate((enemy.x - enemy.y) * 0.0009 + _pulse(time, 8, 0.02));
 
-  //subtle red glow
+  // Subtle red glow
   ctx.globalCompositeOperation = 'lighter';
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, enemy.size * 3.2);
   g.addColorStop(0, _rgba(redFill, 0.14));
@@ -953,7 +968,7 @@ function drawEnemy(ctx, enemy, time) {
   ctx.arc(0, 0, enemy.size * 3.2, 0, Math.PI * 2);
   ctx.fill();
 
-  //shard body 
+  // Shard body
   ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = redFill;
   ctx.strokeStyle = redCore;
@@ -968,7 +983,7 @@ function drawEnemy(ctx, enemy, time) {
   ctx.fill();
   ctx.stroke();
 
-  //small crack lines 
+  // Small crack lines
   ctx.strokeStyle = _rgba('#000000', 0.18);
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -976,10 +991,10 @@ function drawEnemy(ctx, enemy, time) {
   ctx.lineTo(enemy.size * 0.35, enemy.size * 0.45);
   ctx.stroke();
 
-  //boss accent
+  // Boss accent
   if (enemy.isBoss) {
     ctx.fillStyle = ember;
-    ctx.font = `${12 + Math.min(8, Math.floor(enemy.size/3))}px ParticleFont, monospace`;
+    ctx.font = `${12 + Math.min(8, Math.floor(enemy.size / 3))}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('☥', 0, -enemy.size - 10);
@@ -994,15 +1009,15 @@ function draw(ctx, state) {
   const time = state.time || 0;
   const W = 800, H = 600;
 
-  //background: radial haze + faint nebula
-  const bgGrad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H));
-  bgGrad.addColorStop(0, _rgba('#071026', 1)); // deep navy center
+  // Background: radial haze + faint nebula
+  const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H));
+  bgGrad.addColorStop(0, _rgba('#071026', 1));
   bgGrad.addColorStop(0.5, _rgba('#001428', 0.9));
   bgGrad.addColorStop(1, _rgba('#000005', 1));
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  //flickering holographic haze (blue-ish)
+  // Flickering holographic haze
   if (Math.random() < 0.06) {
     ctx.globalAlpha = 0.02 + Math.random() * 0.04;
     ctx.fillStyle = _rgba('#0ea5e9', 1);
@@ -1010,40 +1025,39 @@ function draw(ctx, state) {
     ctx.globalAlpha = 1;
   }
 
-  //grid/scanlines
+  // Grid/scanlines
   ctx.lineWidth = 1;
   for (let x = 0; x <= W; x += 50) {
     ctx.beginPath();
-    ctx.moveTo(x + (_jitter(0.2)), 0);
-    ctx.lineTo(x + (_jitter(0.2)), H);
+    ctx.moveTo(x + _jitter(0.2), 0);
+    ctx.lineTo(x + _jitter(0.2), H);
     ctx.strokeStyle = Math.random() < 0.06 ? _rgba('#be123c', 0.08) : _rgba('#67e8f9', 0.06);
     ctx.stroke();
   }
   for (let y = 0; y <= H; y += 50) {
     ctx.beginPath();
-    ctx.moveTo(0, y + (_jitter(0.2)));
-    ctx.lineTo(W, y + (_jitter(0.2)));
+    ctx.moveTo(0, y + _jitter(0.2));
+    ctx.lineTo(W, y + _jitter(0.2));
     ctx.strokeStyle = Math.random() < 0.06 ? _rgba('#fb7185', 0.08) : _rgba('#67e8f9', 0.06);
     ctx.stroke();
   }
 
-  //subtle CRT horizontal scanlines overlay
+  // Subtle CRT horizontal scanlines overlay
   ctx.save();
   ctx.globalCompositeOperation = 'overlay';
   ctx.fillStyle = _rgba('#000000', 0.03);
   for (let y = 0; y < H; y += 2) {
-    if (y % 6 === 0) continue; // make it irregular
+    if (y % 6 === 0) continue;
     ctx.fillRect(0, y + Math.sin(time * 12 + y * 0.02) * 0.5, W, 1);
   }
   ctx.restore();
 
-  //particles 
+  // Particles
   state.particles.forEach(p => {
     const alpha = Math.max(0, Math.min(1, p.life));
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    //make shards (small rotated rects)
     ctx.translate(p.x + _jitter(0.4), p.y + _jitter(0.4));
     ctx.rotate(p.vx * 0.05 + _jitter(0.6));
 
@@ -1051,9 +1065,9 @@ function draw(ctx, state) {
     const h = Math.max(1, p.size * (0.8 + Math.random() * 1.2));
 
     ctx.fillStyle = _rgba(p.color || '#67e8f9', alpha * 0.95);
-    ctx.fillRect(-w/2, -h/2, w, h);
+    ctx.fillRect(-w / 2, -h / 2, w, h);
 
-    //streak tail
+    // Streak tail
     ctx.strokeStyle = _rgba(p.color || '#67e8f9', alpha * 0.5);
     ctx.lineWidth = Math.max(1, w * 0.12);
     ctx.beginPath();
@@ -1064,10 +1078,10 @@ function draw(ctx, state) {
     ctx.restore();
   });
 
-  //magnet ring
+  // Magnet ring
   if (state.activePowerUp === 'magnet') {
     ctx.save();
-    ctx.setLineDash([6,6]);
+    ctx.setLineDash([6, 6]);
     ctx.strokeStyle = _rgba('#67e8f9', 0.22);
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -1077,13 +1091,13 @@ function draw(ctx, state) {
     ctx.restore();
   }
 
-  //fragments
+  // Fragments
   state.fragments.forEach(frag => {
     const fragPulse = 1 + Math.sin(frag.pulse + time * 6) * 0.18;
     const fx = frag.x + _jitter(0.4);
     const fy = frag.y + _jitter(0.4);
 
-    //outer halo
+    // Outer halo
     ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, frag.size * 3.2);
     g.addColorStop(0, _rgba('#0ea5e9', 0.12));
@@ -1094,7 +1108,7 @@ function draw(ctx, state) {
     ctx.arc(fx, fy, frag.size * 3.2, 0, Math.PI * 2);
     ctx.fill();
 
-    //shard body
+    // Shard body
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = frag.color || '#67e8f9';
     ctx.strokeStyle = _rgba('#0ea5e9', 0.95);
@@ -1108,22 +1122,22 @@ function draw(ctx, state) {
     ctx.fill();
     ctx.stroke();
 
-    //highlight
+    // Highlight
     ctx.fillStyle = _rgba('#ffffff', 0.85);
     ctx.beginPath();
-    ctx.arc(fx - frag.size * 0.25, fy - frag.size * 0.25, frag.size * 0.25, 0, Math.PI*2);
+    ctx.arc(fx - frag.size * 0.25, fy - frag.size * 0.25, frag.size * 0.25, 0, Math.PI * 2);
     ctx.fill();
 
-    //value text
+    // Value text
     if (frag.value > 1) {
       ctx.fillStyle = '#e6f9ff';
-      ctx.font = 'bold 11px ParticleFont, monospace';
+      ctx.font = 'bold 11px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`x${frag.value}`, fx, fy + frag.size + 12);
     }
   });
 
-  //powerups
+  // Power-ups
   state.powerUps.forEach(powerUp => {
     const pp = 1 + Math.sin(powerUp.pulse + time * 6) * 0.12;
     const px = powerUp.x, py = powerUp.y;
@@ -1135,27 +1149,45 @@ function draw(ctx, state) {
     grad.addColorStop(1, _rgba('#000000', 0));
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(px, py, powerUp.size * 4, 0, Math.PI*2);
+    ctx.arc(px, py, powerUp.size * 4, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = _rgba(powerUp.color, 0.95);
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(px, py, powerUp.size * pp, 0, Math.PI*2);
+    ctx.arc(px, py, powerUp.size * pp, 0, Math.PI * 2);
     ctx.stroke();
 
+    // Draw power-up icons
     ctx.fillStyle = powerUp.color;
-    ctx.font = `bold ${16 + Math.floor(powerUp.size/2)}px ParticleFont, monospace`;
+    ctx.font = `bold ${14}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const icons = { shield: '⛨', speed: '⚡', clear: '✖', magnet: '⤓' };
+    const icons = { shield: 'shield.png', speed: 'speed.png', clear: 'clear.png', magnet: 'magnet.png' };
     ctx.fillText(icons[powerUp.type] || '?', px, py);
   });
 
-  //enemies
+  // Spike indicator
+  ctx.save();
+  ctx.font = "bold 18px monospace";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  if ((state.fragmentsForAttack || 0) >= 10) {
+    const pulse = 0.6 + Math.sin((state.time || 0) * 5) * 0.4;
+    ctx.fillStyle = `rgba(96,165,250, ${Math.max(0.25, pulse)})`;
+    ctx.fillText("SPIKE READY", 20, 560);
+    ctx.fillStyle = "rgba(150,200,255,0.12)";
+    ctx.fillRect(20, 580, 120, 6);
+  } else {
+    ctx.fillStyle = "#6b7280";
+    ctx.fillText(`SPIKE: ${state.fragmentsForAttack || 0}/10`, 20, 560);
+  }
+  ctx.restore();
+
+  // Enemies
   state.enemies.forEach(enemy => {
-    //soft halo before the body
     const glowColor = enemy.isBoss ? '#be123c' : (enemy.color || '#fb7185');
     ctx.globalCompositeOperation = 'lighter';
     const eg = ctx.createRadialGradient(enemy.x, enemy.y, 0, enemy.x, enemy.y, enemy.size * 3.2);
@@ -1164,15 +1196,15 @@ function draw(ctx, state) {
     eg.addColorStop(1, _rgba('#000000', 0));
     ctx.fillStyle = eg;
     ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, enemy.size * 3.2, 0, Math.PI*2);
+    ctx.arc(enemy.x, enemy.y, enemy.size * 3.2, 0, Math.PI * 2);
     ctx.fill();
 
     drawEnemy(ctx, enemy, time);
 
-    //boss marker & health
+    // Boss marker & health
     if (enemy.isBoss) {
       ctx.fillStyle = '#ffd5d9';
-      ctx.font = 'bold 14px ParticleFont, monospace';
+      ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('BOSS', enemy.x, enemy.y - enemy.size - 14);
@@ -1191,7 +1223,7 @@ function draw(ctx, state) {
       ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
     }
 
-    //jagged spikes
+    // Jagged spikes
     const spikeCount = enemy.isBoss ? 8 : 6;
     ctx.strokeStyle = _rgba('#000000', 0.25);
     ctx.lineWidth = enemy.isBoss ? 3 : 2;
@@ -1208,49 +1240,80 @@ function draw(ctx, state) {
     }
   });
 
-  //player (draw last so it's on top)
+  // Player (draw last so it's on top)
   drawPlayer(ctx, state.player, time);
 
-  //speed trail for player
+  // Speed trail for player
   if (state.activePowerUp === 'speed') {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = _rgba('#0ea5e9', 0.18);
     ctx.beginPath();
-    ctx.ellipse(state.player.x - 6, state.player.y, state.player.size * 1.8, state.player.size * 0.9, 0, 0, Math.PI*2);
+    ctx.ellipse(state.player.x - 6, state.player.y, state.player.size * 1.8, state.player.size * 0.9, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
 
-  //combo display (holographic font)
+  // Combo display
   if (state.combo > 3) {
     ctx.save();
-    ctx.font = 'bold 34px UIFont, monospace';
+    ctx.font = 'bold 34px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const comboText = `${state.combo}x COMBO!`;
-    //soft stroke then light fill
     ctx.lineWidth = 4;
     ctx.strokeStyle = _rgba('#001428', 0.85);
-    ctx.strokeText(comboText, W/2, 78);
+    ctx.strokeText(comboText, W / 2, 78);
     ctx.fillStyle = '#e6fbff';
-    ctx.fillText(comboText, W/2, 78);
+    ctx.fillText(comboText, W / 2, 78);
     ctx.restore();
   }
 
-  //floating texts
+  // Floating texts
   state.floatingTexts.forEach(text => {
     ctx.save();
     const alpha = Math.max(0, Math.min(1, text.life));
-    ctx.font = 'bold 16px ParticleFont, monospace';
+    ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    //stroke for legibility
     ctx.lineWidth = 3;
     ctx.strokeStyle = _rgba('#001428', alpha * 0.9);
     ctx.strokeText(text.text, text.x, text.y);
     ctx.fillStyle = _rgba(text.color || '#e6fbff', alpha);
     ctx.fillText(text.text, text.x, text.y);
+    ctx.restore();
+  });
+
+  // Render spikes
+  state.spikes.forEach(spike => {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0.08, spike.opacity);
+
+    ctx.translate(spike.x, spike.y);
+    ctx.rotate(Math.atan2(spike.vy, spike.vx) + Math.PI / 4);
+
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 24);
+    grad.addColorStop(0, "rgba(96,165,250,0.9)");
+    grad.addColorStop(1, "rgba(96,165,250,0.0)");
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, -spike.size);
+    ctx.lineTo(spike.size, spike.size);
+    ctx.lineTo(-spike.size, spike.size);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(147,197,253, ${0.9 * spike.opacity})`;
+    ctx.beginPath();
+    ctx.moveTo(0, -spike.size);
+    ctx.lineTo(spike.size * 0.9, spike.size * 0.9);
+    ctx.lineTo(-spike.size * 0.9, spike.size * 0.9);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.restore();
   });
 
