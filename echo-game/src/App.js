@@ -322,7 +322,8 @@ function GameScreen({ difficulty, onGameEnd, stats }) {
         health: settings.healthMod,
         maxHealth: settings.healthMod,
         invulnerable: 0,
-        hasShield: false
+        hasShield: false,
+        rotation: 0 
       },
       fragments: [],
       enemies: [],
@@ -488,6 +489,7 @@ function GameScreen({ difficulty, onGameEnd, stats }) {
       state.player.invulnerable = Math.max(0, state.player.invulnerable - dt);
       state.powerUpTimer = Math.max(0, state.powerUpTimer - dt);
       state.comboTimer = Math.max(0, state.comboTimer - dt);
+      state.player.rotation += dt * 2.5;
 
       if (state.comboTimer <= 0) state.combo = 0;
 
@@ -569,11 +571,31 @@ function GameScreen({ difficulty, onGameEnd, stats }) {
       });
 
       state.spikeCooldown = Math.max(0, state.spikeCooldown - dt);
-      if (state.keys[' '] && state.spikes.length < 4 && state.spikeCooldown === 0) {
+      if (state.keys[' '] && state.spikes.length < 12 && state.spikeCooldown === 0) {
         if (state.fragmentsForAttack >= 10) {
           state.fragmentsForAttack -= 10;
           state.spikeCooldown = 0.5;
 
+          // Scale spike count and power with collected fragments
+          const spikeCount = Math.min(3 + Math.floor(state.collected / 50), 8);
+          const spikeSpeed = 8 + Math.min(state.collected / 100, 5);
+          const spikeSize = 12 + Math.min(state.collected / 80, 8);
+
+          const angleStep = (Math.PI * 2) / spikeCount;
+          for (let i = 0; i < spikeCount; i++) {
+            const angle = state.player.rotation + (angleStep * i);
+            state.spikes.push({
+              x: p.x,
+              y: p.y,
+              vx: Math.cos(angle) * spikeSpeed,
+              vy: Math.sin(angle) * spikeSpeed,
+              size: spikeSize,
+              life: 1,
+              opacity: 1,
+              maxLife: 1,
+              damage: 1 + Math.floor(state.collected / 100)  // NEW: damage scales
+            });
+          }
           const dirs = [
             { dx: 0, dy: -1 },
             { dx: -0.7, dy: 1},
@@ -753,7 +775,7 @@ function GameScreen({ difficulty, onGameEnd, stats }) {
             const enemy = state.enemies[j];
             const d = Math.hypot(spike.x - enemy.x, spike.y - enemy.y);
             if (d < enemy.size + (spike.size || 8)) {
-              enemy.health -= 1;
+              enemy.health -= (spike.damage || 1);
               createParticles(enemy.x, enemy.y, 10, "#60a5fa");
               if (enemy.health <= 0) {
                 state.enemiesDestroyed++;
@@ -903,7 +925,7 @@ function drawPlayer(ctx, player, time) {
 
   ctx.save();
   ctx.translate(player.x, player.y);
-  ctx.rotate((player.x + player.y + time * 0.2) * 0.0008);
+  ctx.rotate(player.rotation);
 
   // Holographic glow
   ctx.globalCompositeOperation = 'lighter';
